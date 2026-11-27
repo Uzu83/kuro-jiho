@@ -519,3 +519,234 @@ a:hover {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+main.admin-main {
+  max-width: 46rem;
+  min-width: 0;
+  padding: 1rem 1rem 3.5rem;
+}
+
+.admin-main > h1 {
+  font-size: 1.7rem;
+}
+
+.admin-header {
+  margin-bottom: 1.25rem;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.admin-nav a,
+.admin-nav button,
+.admin-form button,
+.admin-filters button,
+.admin-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  white-space: normal;
+  text-align: center;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 3%, var(--paper));
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-form button[type="submit"],
+.admin-filters button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+
+.admin-text-button {
+  margin-top: 0.45rem;
+}
+
+.admin-form,
+.admin-filters {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  min-width: 0;
+}
+
+.admin-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select,
+.admin-filters input,
+.admin-filters select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.4rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-form textarea {
+  min-height: 6.5rem;
+  resize: vertical;
+}
+
+.admin-form ::placeholder {
+  color: var(--muted);
+}
+
+.admin-row,
+.admin-card {
+  min-width: 0;
+}
+
+.admin-card {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+}
+
+.admin-grid,
+.admin-filters {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-section {
+  margin-top: 2rem;
+}
+
+.admin-section h2,
+.admin-form legend,
+.admin-subhead {
+  margin: 0.8rem 0 0.35rem;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-sub {
+  display: block;
+  margin-top: 0.55rem;
+}
+
+.admin-hint,
+.admin-fixed {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-fixed {
+  padding: 0.75rem 0.9rem;
+  border-left: 4px solid var(--accent);
+  background: var(--tint);
+  color: var(--ink);
+}
+
+.admin-alert,
+.admin-warn,
+.admin-ok {
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-alert {
+  border: 1px solid var(--accent);
+  background: var(--tint);
+}
+
+.admin-warn {
+  border: 1px solid var(--rule);
+}
+
+.admin-ok {
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+}
+
+.admin-alert ul,
+.admin-warn ul,
+.admin-revisions {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+}
+
+.admin-check input {
+  width: 1.15rem;
+  min-height: 1.15rem;
+  margin: 0;
+}
+
+.admin-diff {
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.75rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.article-embedded {
+  padding: 0;
+}
+
+.admin-preview {
+  margin-top: 1.5rem;
+  min-width: 0;
+}
+
+@media (min-width: 40rem) {
+  .admin-main > h1 {
+    font-size: 2.1rem;
+  }
+
+  .admin-grid,
+  .admin-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}

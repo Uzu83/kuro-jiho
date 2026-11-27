@@ -203,6 +203,10 @@ export type Database = {
       };
     };
     Functions: {
+      admin_session_allowed: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
       consume_rate_limit: {
         Args: {
           key: string;

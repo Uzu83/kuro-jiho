@@ -90,6 +90,27 @@ insert into public.admin_allowlist (email) values ('name@example.com');
 
 許可の取り消しは、SQL エディタでその行を削除します。アプリのロール（anon、authenticated、service role）には DELETE を付けていません。
 
+### 管理画面のマジックリンク
+
+ログインは `/admin/login` です。アプリは Supabase Auth のマジックリンク（`signInWithOtp`、`shouldCreateUser: false`）だけを使います。パスワードの入力欄はありません。許可リストに無いアドレスでも、送ったあとの画面は同じです。リンクが届くのは、許可リストにあり、かつ Auth にユーザーがあるアドレスだけです。
+
+次は社長がダッシュボードで行います。このリポジトリからは変更しません。
+
+1. **Authentication → Sign In / Providers → Email** を開きます。新規ユーザーのサインアップ（Allow new users to sign up）をオフにします。メールのマジックリンクはオンのままにします。
+2. **Authentication → URL Configuration** を開きます。Site URL を公開サイトのオリジン（末尾スラッシュなし）にします。Redirect URLs に次を追加します。
+   - ローカル: `http://localhost:3000/auth/callback`
+   - 本番: `https://<公開オリジン>/auth/callback`
+3. **Authentication → Emails → Templates → Magic link** を開きます。同じブラウザで開くリンクは、既定の `{{ .ConfirmationURL }}` のままで、上の Redirect URL へ戻ります。メールアプリから別のブラウザで開く場合は、リンクを次に変えます。`{{ .RedirectTo }}` はアプリが `/auth/callback` を渡します。
+
+```html
+<p><a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">ログイン</a></p>
+```
+
+4. **Authentication → Users → Add user** で、許可するアドレスのユーザーを作ります。Auto Confirm User をオンにします。ダッシュボードがパスワードの入力を求めるときは、パスワードマネージャで作った長い無作為の値を入れます。その値はアプリ、Git、チャットには書きません。アプリからパスワードではログインできません。
+5. 上の SQL で、同じアドレスを小文字にして `admin_allowlist` に追加します。Auth のユーザーと許可リストの両方がないと、管理画面には入れません。
+
+管理画面の操作（作成、保存、公開、非公開化）はサーバーアクションです。記事の削除ボタンはありません。
+
 ### Vercel へのインポート
 
 1. [Vercel の新しいプロジェクト](https://vercel.com/new) を開きます。
