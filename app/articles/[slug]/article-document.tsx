@@ -4,11 +4,19 @@ import type { PublicArticle } from "@/lib/articles/public";
 const AI_LABEL = "この記事はAI記者クロが公式発表をもとに作成しました。";
 const AI_LINK = "誤りがあればお知らせください";
 
-export function ArticleDocument({ article }: { article: PublicArticle }) {
+export function ArticleDocument({
+  article,
+  embedded = false,
+}: {
+  article: PublicArticle;
+  /** 管理画面のプレビューでは main を重ねない。 */
+  embedded?: boolean;
+}) {
   const corrected = article.corrections.length > 0;
+  const Tag = embedded ? "div" : "main";
 
   return (
-    <main className="article-main">
+    <Tag className={embedded ? "article-main article-embedded" : "article-main"}>
       <article className="article">
         <header className="article-header">
           <p className="article-home">
@@ -158,6 +166,6 @@ export function ArticleDocument({ article }: { article: PublicArticle }) {
           </a>
         </p>
       </article>
-    </main>
+    </Tag>
   );
 }

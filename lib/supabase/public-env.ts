@@ -5,6 +5,11 @@ const publicEnvSchema = z.object({
   anonKey: z.string().min(1),
 });
 
+/** URL と anon キーが両方あるときだけ true。値の中身は見ない。 */
+export function hasPublicSupabaseEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
 export function getPublicSupabaseEnv() {
   const parsed = publicEnvSchema.safeParse({
     url: process.env.NEXT_PUBLIC_SUPABASE_URL,

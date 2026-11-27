@@ -764,6 +764,73 @@ function registerSchemaTests(name: string, open: () => Promise<Db>) {
       );
     });
 
+    it("checks the admin session from the JWT and records admin revisions", async () => {
+      const draft = await insertArticle();
+      await db.sql(`insert into public.admin_allowlist (email) values ('admin@example.com')`);
+
+      const outsider = await withRole(
+        { role: "authenticated", claims: { email: "visitor@example.com", sub: outsiderId } },
+        () => db.sql<{ ok: boolean }>(`select public.admin_session_allowed() as ok`),
+      );
+      expect(outsider.rows[0]?.ok).toBe(false);
+
+      const editor = await withRole(
+        { role: "authenticated", claims: { email: "Admin@example.com", sub: adminId } },
+        () => db.sql<{ ok: boolean }>(`select public.admin_session_allowed() as ok`),
+      );
+      expect(editor.rows[0]?.ok).toBe(true);
+
+      await expectSqlState(
+        () => withRole({ role: "anon" }, () => db.sql(`select public.admin_session_allowed()`)),
+        "42501",
+      );
+
+      const updated = await withRole(
+        { role: "authenticated", claims: { email: "admin@example.com", sub: adminId } },
+        () =>
+          db.sql<{ title: string }>(
+            `select title from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', '数値を直した')`,
+            [draft.id, JSON.stringify({ title: "訂正後" })],
+          ),
+      );
+      expect(updated.rows[0]?.title).toBe("訂正後");
+      const revision = await db.sql<{ actor: string; change_type: string; note: string }>(
+        `select actor, change_type, note from public.article_revisions where article_id = $1`,
+        [draft.id],
+      );
+      expect(revision.rows).toEqual([
+        { actor: `admin:${adminId}`, change_type: "correction", note: "数値を直した" },
+      ]);
+
+      const blocked = await withRole(
+        { role: "authenticated", claims: { email: "visitor@example.com", sub: outsiderId } },
+        () =>
+          db.sql(
+            `select title from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'update', null)`,
+            [draft.id, JSON.stringify({ title: "侵入" })],
+          ),
+      );
+      expect(blocked.rows).toEqual([]);
+      const kept = await db.sql<{ title: string }>(
+        `select title from public.articles where id = $1`,
+        [draft.id],
+      );
+      expect(kept.rows[0]?.title).toBe("訂正後");
+
+      await expectSqlState(
+        () =>
+          withRole(
+            { role: "authenticated", claims: { email: "admin@example.com", sub: adminId } },
+            () =>
+              db.sql(
+                `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', null)`,
+                [draft.id, JSON.stringify({ title: "失敗" })],
+              ),
+          ),
+        "23514",
+      );
+    });
+
     it("stops consume_rate_limit at the limit without incrementing further", async () => {
       const calls = await withRole({ role: "service_role" }, async () => {
         const first = await db.sql<{ ok: boolean }>(
