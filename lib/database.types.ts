@@ -1,6 +1,6 @@
 /**
  * `supabase gen types --lang typescript` と同じ形。
- * 列は supabase/migrations/20261127073300_articles_revisions_rate_limits.sql に合わせる。
+ * 列は supabase/migrations/20261127105427_articles_revisions_rate_limits.sql に合わせる。
  */
 export type Json =
   | string

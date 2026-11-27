@@ -5,7 +5,7 @@ import { z, type ZodIssue } from "zod";
  * `parseArticleCreate` / `parseArticleUpdate` を使う。
  *
  * 列の取りうる値は
- * supabase/migrations/20261127073300_articles_revisions_rate_limits.sql
+ * supabase/migrations/20261127105427_articles_revisions_rate_limits.sql
  * に合わせる。author / id / version / updated_at はサーバーが付ける。
  *
  * 作成 JSON:
