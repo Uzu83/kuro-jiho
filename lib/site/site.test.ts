@@ -9,7 +9,7 @@ import { CorrectionsDocument } from "@/app/corrections/document";
 import { HomeView } from "@/app/listings/views";
 import { PolicyDocument } from "@/app/policy/document";
 import { correctionReportHref, type PublicArticle } from "@/lib/articles/public";
-import { createCorrectionDirectory } from "@/lib/corrections/directory";
+import { CORRECTION_PAGE_SIZE, createCorrectionDirectory } from "@/lib/corrections/directory";
 import {
   readCorrectionList,
   toCorrectionList,
@@ -317,6 +317,10 @@ describe("correction directory", () => {
               call.filters.push(`${column}=${value}`);
               return api;
             },
+            range(from: number, to: number) {
+              call.filters.push(`range=${from}-${to}`);
+              return api;
+            },
             then(
               resolve: (value: { data: unknown; error: { message: string } | null }) => unknown,
               reject?: (reason: unknown) => unknown,
@@ -355,6 +359,7 @@ describe("correction directory", () => {
     expect(items.map((item) => item.title)).toEqual(["福岡市が告示を公開"]);
     expect(calls.map((call) => call.table)).toEqual(["article_corrections", "articles"]);
     expect(calls[0]?.select).toBe("article_id, created_at, note, version");
+    expect(calls[0]?.filters).toContain(`range=0-${CORRECTION_PAGE_SIZE - 1}`);
     expect(calls[0]?.select).not.toContain("actor");
     expect(calls[0]?.select).not.toContain("snapshot");
     expect(calls[1]).toMatchObject({
@@ -375,6 +380,9 @@ describe("correction directory", () => {
               return api;
             },
             order() {
+              return api;
+            },
+            range() {
               return api;
             },
             then(
@@ -403,6 +411,141 @@ describe("correction directory", () => {
       const message = error instanceof Error ? error.message : String(error);
       expect(message).not.toContain(secret);
     }
+  });
+
+  it("keeps reading later pages and does not publish a partial list", async () => {
+    const notes = [
+      {
+        id: "c",
+        article_id: "article-2",
+        created_at: "2026-12-04T12:00:00+09:00",
+        note: "新しい記事",
+        version: 1,
+      },
+      {
+        id: "b",
+        article_id: "article-1",
+        created_at: "2026-12-03T18:15:00+09:00",
+        note: "2件目",
+        version: 2,
+      },
+      {
+        id: "a",
+        article_id: "article-1",
+        created_at: "2026-12-02T09:00:00+09:00",
+        note: "1件目",
+        version: 1,
+      },
+    ];
+    const ranges: string[] = [];
+    const orders: string[] = [];
+    const articleChunks: string[] = [];
+
+    function pagingClient(failPage?: number) {
+      return {
+        from(table: string) {
+          const call = { range: "", orders: [] as string[] };
+          const api = {
+            select() {
+              return api;
+            },
+            order(column: string, options?: { ascending?: boolean }) {
+              call.orders.push(`${column}:${options?.ascending === false ? "desc" : "asc"}`);
+              return api;
+            },
+            in(_column: string, values: readonly string[]) {
+              if (table === "articles") {
+                articleChunks.push(values.join(","));
+              }
+              return api;
+            },
+            eq() {
+              return api;
+            },
+            range(from: number, to: number) {
+              call.range = `${from}-${to}`;
+              return api;
+            },
+            then(
+              resolve: (value: { data: unknown; error: { message: string } | null }) => unknown,
+              reject?: (reason: unknown) => unknown,
+            ) {
+              if (table === "article_corrections") {
+                ranges.push(call.range);
+                orders.push(call.orders.join(","));
+                const [from, to] = call.range.split("-").map(Number);
+                const page = ranges.length;
+                if (failPage === page) {
+                  return Promise.resolve({ data: null, error: { message: "page failed" } }).then(resolve, reject);
+                }
+                return Promise.resolve({ data: notes.slice(from, (to ?? from) + 1), error: null }).then(resolve, reject);
+              }
+              const ids = articleChunks.at(-1)?.split(",") ?? [];
+              const rows = ids.map((id) =>
+                articleInput({
+                  id,
+                  slug: id === "article-2" ? "2026-12-04-12-later" : "2026-12-01-07-notice",
+                  title: id === "article-2" ? "あとの記事" : "福岡市が告示を公開",
+                  theme: id === "article-2" ? "sports" : "fukuoka",
+                }),
+              );
+              return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+            },
+          };
+          return api;
+        },
+      };
+    }
+
+    const items = await readCorrectionList(
+      createCorrectionDirectory(pagingClient() as never, { pageSize: 2, articleChunkSize: 1 }),
+    );
+    expect(ranges).toEqual(["0-1", "2-3"]);
+    expect(orders[0]).toBe("created_at:desc,version:desc,id:desc");
+    expect(articleChunks).toEqual(["article-2", "article-1"]);
+    expect(items.map((item) => [item.title, item.count, item.note])).toEqual([
+      ["あとの記事", 1, "新しい記事"],
+      ["福岡市が告示を公開", 2, "2件目"],
+    ]);
+
+    ranges.length = 0;
+    await expect(
+      readCorrectionList(createCorrectionDirectory(pagingClient(2) as never, { pageSize: 2 })),
+    ).rejects.toThrow("記事の取得に失敗しました");
+    expect(ranges).toEqual(["0-1", "2-3"]);
+
+    const endless = {
+      from() {
+        const api = {
+          select() {
+            return api;
+          },
+          order() {
+            return api;
+          },
+          range() {
+            return api;
+          },
+          then(resolve: (value: { data: unknown[]; error: null }) => unknown, reject?: (reason: unknown) => unknown) {
+            return Promise.resolve({
+              data: [
+                {
+                  article_id: "article-1",
+                  created_at: "2026-12-03T18:15:00+09:00",
+                  note: "終わらない",
+                  version: 1,
+                },
+              ],
+              error: null,
+            }).then(resolve, reject);
+          },
+        };
+        return api;
+      },
+    };
+    await expect(
+      readCorrectionList(createCorrectionDirectory(endless as never, { pageSize: 1, maxPages: 1 })),
+    ).rejects.toThrow("記事の取得に失敗しました");
   });
 });
 

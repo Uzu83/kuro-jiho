@@ -9,6 +9,17 @@ type Client = SupabaseClient<Database>;
 const NOTE_COLUMNS = "article_id, created_at, note, version" as const;
 const ARTICLE_COLUMNS = "id, slug, title, theme, status" as const;
 
+/** PostgREST の既定上限。これを超える訂正は、同じ順の次のページを取る。 */
+export const CORRECTION_PAGE_SIZE = 1000;
+const MAX_CORRECTION_PAGES = 100;
+const ARTICLE_ID_CHUNK = 100;
+
+type DirectoryOptions = {
+  pageSize?: number;
+  maxPages?: number;
+  articleChunkSize?: number;
+};
+
 type NoteRow = Pick<
   Database["public"]["Views"]["article_corrections"]["Row"],
   "article_id" | "created_at" | "note" | "version"
@@ -50,46 +61,79 @@ function asArticle(row: ArticleRow): CorrectionArticleInput | null {
 
 /**
  * 訂正一覧。anon クライアント専用。
- * 公開ビューの訂正と、公開済み記事の見出しだけを読む。失敗時はデータベースのメッセージを返さない。
+ * 公開ビューの訂正と、公開済み記事の見出しだけを読む。
+ * 訂正は created_at、version、id の順でページを最後まで取る。上限で静かに切らない。
+ * 失敗したときは、途中までの一覧を返さず、データベースのメッセージも返さない。
  */
-export function createCorrectionDirectory(client: Client): CorrectionDirectory {
+export function createCorrectionDirectory(client: Client, options: DirectoryOptions = {}): CorrectionDirectory {
+  const pageSize = options.pageSize ?? CORRECTION_PAGE_SIZE;
+  const maxPages = options.maxPages ?? MAX_CORRECTION_PAGES;
+  const articleChunkSize = options.articleChunkSize ?? ARTICLE_ID_CHUNK;
+
   return {
     async listCorrectionRows() {
-      const { data: noteData, error: noteError } = await client
-        .from("article_corrections")
-        .select(NOTE_COLUMNS)
-        .order("created_at", { ascending: false })
-        .order("version", { ascending: false });
-      if (noteError) {
+      if (
+        !Number.isInteger(pageSize) ||
+        pageSize < 1 ||
+        !Number.isInteger(maxPages) ||
+        maxPages < 1 ||
+        !Number.isInteger(articleChunkSize) ||
+        articleChunkSize < 1
+      ) {
         fail();
       }
 
       const notes: CorrectionNoteInput[] = [];
-      for (const row of noteData ?? []) {
-        const note = asNote(row);
-        if (note) {
-          notes.push(note);
+      let finished = false;
+      for (let page = 0; page <= maxPages; page += 1) {
+        const from = page * pageSize;
+        const { data, error } = await client
+          .from("article_corrections")
+          .select(NOTE_COLUMNS)
+          .order("created_at", { ascending: false })
+          .order("version", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) {
+          fail();
         }
+
+        const rows = data ?? [];
+        for (const row of rows) {
+          const note = asNote(row);
+          if (note) {
+            notes.push(note);
+          }
+        }
+        if (rows.length < pageSize) {
+          finished = true;
+          break;
+        }
+      }
+      if (!finished) {
+        fail();
       }
       if (notes.length === 0) {
         return { notes, articles: [] };
       }
 
       const ids = [...new Set(notes.map((note) => note.articleId))];
-      const { data: articleData, error: articleError } = await client
-        .from("articles")
-        .select(ARTICLE_COLUMNS)
-        .in("id", ids)
-        .eq("status", "published");
-      if (articleError) {
-        fail();
-      }
-
       const articles: CorrectionArticleInput[] = [];
-      for (const row of articleData ?? []) {
-        const article = asArticle(row);
-        if (article) {
-          articles.push(article);
+      for (let index = 0; index < ids.length; index += articleChunkSize) {
+        const chunk = ids.slice(index, index + articleChunkSize);
+        const { data, error } = await client
+          .from("articles")
+          .select(ARTICLE_COLUMNS)
+          .in("id", chunk)
+          .eq("status", "published");
+        if (error) {
+          fail();
+        }
+        for (const row of data ?? []) {
+          const article = asArticle(row);
+          if (article) {
+            articles.push(article);
+          }
         }
       }
       return { notes, articles };
