@@ -10,7 +10,34 @@ export function jstDate(now: Date): string {
   }).format(now);
 }
 
+/** 実在する YYYY-MM-DD だけを受け付ける。存在しない日は繰り上げない。 */
+export function isIsoDate(isoDate: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  return utc.getUTCFullYear() === year && utc.getUTCMonth() === month - 1 && utc.getUTCDate() === day;
+}
+
+/** date 列が時刻付きで返っても、先頭の暦日だけを使う。 */
+export function calendarDate(value: string): string | null {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  if (!match?.[1] || !isIsoDate(match[1])) {
+    return null;
+  }
+  return match[1];
+}
+
 export function addIsoDays(isoDate: string, days: number): string {
+  if (!isIsoDate(isoDate)) {
+    throw new Error("invalid date");
+  }
+
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!match?.[1] || !match[2] || !match[3]) {
     throw new Error("invalid date");
