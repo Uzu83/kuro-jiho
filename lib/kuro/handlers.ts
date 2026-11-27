@@ -32,6 +32,7 @@ import {
   RevisionNoteError,
   SlugConflictError,
   SlotConflictError,
+  StaleArticleError,
   type ArticlePatch,
   type ArticleRecord,
   type ArticleWrite,
@@ -78,6 +79,9 @@ function failureResponse(error: unknown): Response {
   }
   if (error instanceof SlugConflictError) {
     return jsonError(409, MESSAGES.slugConflict);
+  }
+  if (error instanceof StaleArticleError) {
+    return jsonError(409, MESSAGES.staleArticle);
   }
   if (error instanceof ArticleNotFoundError) {
     return jsonError(404, MESSAGES.notFound);
@@ -417,6 +421,7 @@ export async function handleUpdateArticle(
     const saved = await deps.store.updateArticle(current.id, toPatch(parsed.data), {
       changeType: parsed.data.change_type,
       changeNote: parsed.data.change_note ?? null,
+      expectedVersion: current.version,
     });
     runRevalidate(() =>
       deps.revalidateArticle?.({

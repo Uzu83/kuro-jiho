@@ -157,6 +157,7 @@ export function createSupabaseKuroStore(): KuroStore {
         patch: patch as Json,
         change_type: revision.changeType,
         change_note: revision.changeNote,
+        expected_version: revision.expectedVersion,
       });
       if (error) {
         throwDb(error);

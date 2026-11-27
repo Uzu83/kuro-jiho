@@ -29,6 +29,7 @@ import {
   mapDatabaseError,
   SlugConflictError,
   SlotConflictError,
+  StaleArticleError,
   sourceUrls,
   type ArticlePatch,
   type ArticleRecord,
@@ -189,6 +190,9 @@ class MemoryStore implements KuroStore {
     const row = this.articles.find((article) => article.id === id);
     if (!row) {
       throw new Error("missing");
+    }
+    if (row.version !== revision.expectedVersion) {
+      throw new StaleArticleError();
     }
     this.revisions.push({
       articleId: id,
@@ -732,6 +736,38 @@ describe("kuro api", () => {
     ]);
   });
 
+  it("rejects an update when the article changed after it was read", async () => {
+    await handleCreateArticle(request("/api/kuro/articles", { token, body: validCreate() }), callDeps());
+    const original = store.updateArticle.bind(store);
+    store.updateArticle = async (id, patch, revision) => {
+      const row = store.articles.find((article) => article.id === id);
+      if (row && row.version === revision.expectedVersion) {
+        row.version += 1;
+      }
+      return original(id, patch, revision);
+    };
+
+    const response = await handleUpdateArticle(
+      request("/api/kuro/articles/2026-12-01-07-fukuoka-notice", {
+        method: "PATCH",
+        token,
+        body: {
+          change_type: "correction",
+          change_note: "見出しの数値を訂正",
+          title: "福岡市が告示を更新",
+        },
+      }),
+      "2026-12-01-07-fukuoka-notice",
+      callDeps(),
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "記事が他の更新で変わっています。取り直してください",
+    });
+    expect(store.articles[0]?.title).toBe("福岡市が告示を公開");
+    expect(store.revisions).toEqual([]);
+  });
+
   it("requires a note when updating a published article", async () => {
     await handleCreateArticle(
       request("/api/kuro/articles", {
@@ -867,6 +903,7 @@ describe("database errors", () => {
       mapDatabaseError("23505", 'duplicate key value violates unique constraint "articles_one_published_per_slot"'),
     ).toBeInstanceOf(SlotConflictError);
     expect(mapDatabaseError("23514", "correction requires a note").message).toBe("correction note required");
+    expect(mapDatabaseError("40001", "stale article version")).toBeInstanceOf(StaleArticleError);
     expect(mapDatabaseError("XX000", "secret detail").message).toBe("database request failed");
   });
 });
@@ -1041,8 +1078,8 @@ describe("kuro api against postgres", () => {
         try {
           const rows = await service<{ slug: string; version: number; theme: string; date: string }>(
             `select slug, version, theme, date::text as date
-             from public.kuro_apply_article_update($1::uuid, $2::jsonb, $3, $4)`,
-            [id, JSON.stringify(patch), revision.changeType, revision.changeNote],
+             from public.kuro_apply_article_update($1::uuid, $2::jsonb, $3, $4, $5)`,
+            [id, JSON.stringify(patch), revision.changeType, revision.changeNote, revision.expectedVersion],
           );
           const row = rows[0];
           if (!row) {
@@ -1152,7 +1189,7 @@ describe("kuro api against postgres", () => {
 
     await expect(
       service(
-        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', '   ')`,
+        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', '   ', 1)`,
         [id.rows[0]?.id, JSON.stringify({ title: "失敗" })],
       ),
     ).rejects.toSatisfy((error: unknown) => sqlState(error) === "23514");
@@ -1167,7 +1204,7 @@ describe("kuro api against postgres", () => {
     await db.exec("begin");
     await db.exec("set local role anon");
     await expect(
-      db.query(`select * from public.kuro_apply_article_update($1::uuid, '{}'::jsonb, 'update', null)`, [
+      db.query(`select * from public.kuro_apply_article_update($1::uuid, '{}'::jsonb, 'update', null, 1)`, [
         id.rows[0]?.id,
       ]),
     ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
@@ -1184,6 +1221,21 @@ describe("kuro api against postgres", () => {
     expect(names).toContain("service_role");
     expect(names).not.toContain("anon");
     expect(names).not.toContain("PUBLIC");
+
+    await expect(
+      service(
+        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'update', null, 2)`,
+        [id.rows[0]?.id, JSON.stringify({ title: "古い版への更新" })],
+      ),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "40001");
+    const still = await db.query<{ title: string; version: number }>(
+      `select title, version from public.articles`,
+    );
+    expect(still.rows).toEqual([{ title: "福岡市が告示を公開", version: 1 }]);
+    const afterStale = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.article_revisions`,
+    );
+    expect(afterStale.rows[0]?.count).toBe(0);
   });
 
   it("returns 409 for a second published article in the same slot", async () => {

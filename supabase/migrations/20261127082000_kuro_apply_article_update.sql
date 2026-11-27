@@ -1,13 +1,15 @@
 -- 投稿 API の更新。change_note は日本語を含むため HTTP ヘッダーに載せず、
 -- 同一トランザクションで set_config してから articles を UPDATE する。
 -- 改訂行は private.record_article_revision が残す。
+-- expected_version が現在の version と違うときは更新しない。
 -- service_role だけが実行できる。DELETE は付けない。
 
 create or replace function public.kuro_apply_article_update(
   target_id uuid,
   patch jsonb,
   change_type text,
-  change_note text
+  change_note text,
+  expected_version integer
 )
 returns setof public.articles
 language plpgsql
@@ -26,6 +28,11 @@ begin
   if change_type is null
     or change_type not in ('update', 'correction', 'publish', 'unpublish') then
     raise exception 'change_type must be update, correction, publish, or unpublish'
+      using errcode = '23514';
+  end if;
+
+  if expected_version is null or expected_version < 1 then
+    raise exception 'expected_version must be positive'
       using errcode = '23514';
   end if;
 
@@ -87,21 +94,28 @@ begin
     end,
     author = 'kuro'
   where article.id = target_id
+    and article.version = expected_version
   returning * into v_row;
 
   if found then
     return next v_row;
+    return;
+  end if;
+
+  if exists (select 1 from public.articles where id = target_id) then
+    raise exception 'stale article version'
+      using errcode = '40001';
   end if;
 
   return;
 end;
 $fn$;
 
-comment on function public.kuro_apply_article_update(uuid, jsonb, text, text) is
-  '記事を更新し、トリガーへ change_type と change_note を渡す。service_role 専用。';
+comment on function public.kuro_apply_article_update(uuid, jsonb, text, text, integer) is
+  '記事を更新し、トリガーへ change_type と change_note を渡す。version が一致しないときは更新しない。service_role 専用。';
 
-revoke all on function public.kuro_apply_article_update(uuid, jsonb, text, text)
+revoke all on function public.kuro_apply_article_update(uuid, jsonb, text, text, integer)
   from public, anon, authenticated, service_role;
 
-grant execute on function public.kuro_apply_article_update(uuid, jsonb, text, text)
+grant execute on function public.kuro_apply_article_update(uuid, jsonb, text, text, integer)
   to service_role;
