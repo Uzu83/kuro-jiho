@@ -52,6 +52,8 @@ npm test
 npm run build
 ```
 
+`npm test` は記事スキーマの制約と RLS も、リポジトリ内のインメモリ Postgres で確認します。Supabase のプロジェクトは要りません。
+
 `.env.local` を含む `.env*` は Git に含めません。例外は値を空にした [`.env.example`](.env.example) だけです。
 
 ## 社長が行う設定
@@ -71,14 +73,22 @@ supabase login
 supabase link --project-ref <project-ref>
 ```
 
-5. スキーマの SQL は `supabase/migrations/` にコミットします。ファイルがリポジトリに入ったあと、リモートへ適用します。
+5. スキーマの SQL は `supabase/migrations/` にあります。リモートへ適用します。
 
 ```bash
 supabase db push --dry-run
 supabase db push
 ```
 
-マイグレーションファイルがまだ無い間は、`db push` が適用するものはありません。スキーマは後続の Issue で追加します。`supabase db reset --linked` はリモートのデータを消すので、本番では使いません。
+`supabase db reset --linked` はリモートのデータを消すので、本番では使いません。
+
+適用後、管理画面に入れるメールアドレスを許可リストへ追加します。アドレスは小文字だけを保存します。次の `name@example.com` は置き換える例です。
+
+```sql
+insert into public.admin_allowlist (email) values ('name@example.com');
+```
+
+許可の取り消しは、SQL エディタでその行を削除します。アプリのロール（anon、authenticated、service role）には DELETE を付けていません。
 
 ### Vercel へのインポート
 
