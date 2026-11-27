@@ -67,7 +67,13 @@ export function ArticleDocument({
                 <p>発行元：{source.publisher}</p>
                 {source.url ? (
                   <p>
-                    <a className="article-source-url" href={source.url} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className="article-source-url"
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-analytics="source_click"
+                    >
                       {source.url}
                       <span className="visually-hidden">（新しいタブで開く）</span>
                     </a>
@@ -161,7 +167,7 @@ export function ArticleDocument({
         ) : null}
 
         <p className="article-report">
-          <a href={article.reportHref} target="_blank" rel="noopener noreferrer">
+          <a href={article.reportHref} target="_blank" rel="noopener noreferrer" data-analytics="report_error_click">
             誤りを報告
             <span className="visually-hidden">（新しいタブで開く）</span>
           </a>

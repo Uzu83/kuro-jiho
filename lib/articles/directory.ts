@@ -10,6 +10,7 @@ type SelectedArticle = Pick<
   | "slug"
   | "title"
   | "theme"
+  | "slot"
   | "status"
   | "published_at"
   | "updated_at"
@@ -34,6 +35,7 @@ function asPublished(row: SelectedArticle): PublishedArticleRow | null {
     slug: row.slug,
     title: row.title,
     theme: row.theme,
+    slot: row.slot,
     status: row.status,
     published_at: row.published_at,
     updated_at: row.updated_at,
@@ -51,7 +53,7 @@ export function createArticleDirectory(client: Client): ArticleDirectory {
       const { data, error } = await client
         .from("articles")
         .select(
-          "id, slug, title, theme, status, published_at, updated_at, summary, body_md, sources, verification, related",
+          "id, slug, title, theme, slot, status, published_at, updated_at, summary, body_md, sources, verification, related",
         )
         .eq("slug", slug)
         .eq("status", "published")

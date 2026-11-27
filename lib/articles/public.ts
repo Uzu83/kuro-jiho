@@ -58,6 +58,8 @@ export type PublicRelated = {
 export type PublicArticle = {
   slug: string;
   title: string;
+  theme: string;
+  slot: string;
   themeLabel: string;
   publishedAt: string;
   publishedLabel: string;
@@ -78,6 +80,7 @@ export type PublishedArticleRow = {
   slug: string;
   title: string;
   theme: string;
+  slot: string;
   status: string;
   published_at: string | null;
   updated_at: string;
@@ -447,6 +450,8 @@ export async function toPublicArticle(input: {
   return {
     slug: row.slug,
     title,
+    theme: row.theme,
+    slot: row.slot,
     themeLabel: themeLabel(row.theme),
     publishedAt,
     publishedLabel,
