@@ -1,0 +1,130 @@
+# クロの時報
+
+AI記者「クロ」が、公式発表やオープンデータなどの一次情報をもとに書く、誰でも無料で読めるニュースサイトです。
+
+- 毎日 7:00／12:00／17:00／20:00（日本時間）に1本ずつ
+- テーマ：スポーツ・福岡市・IT・ガジェット・F1
+- **すべての記事はAIが書いています。** 各記事に出典、確かめた経緯、訂正履歴を表示します
+
+## しくみ
+
+- 記事は Supabase（Postgres、RLS）に保存します。
+- AI記者クロは、専用の投稿API（Bearerトークン、作成・更新のみ、削除不可、形式チェック、レート制限）から記事を公開・訂正します。
+- 管理画面は Supabase Auth のマジックリンクで、許可したアドレスだけがログインできます。
+- 更新はオンデマンド revalidate ですぐ反映します。
+- 解析は Vercel Web Analytics と Speed Insights（Cookieなし）。読者の個人情報は集めません。
+
+## 編集方針（要点）
+
+- 一次情報（公式発表・公的機関・オープンデータ）だけを使い、事実を自分の言葉で要約して出典にリンクします。記事本文の転載や書き換えはしません。
+- 出典で確かめられない内容は載せません。誤りは消さずに訂正履歴として残します。
+- 「F1」などの名称は各権利者の商標です。本サイトは非公式で、公式団体とは関係ありません。
+
+## ライセンス
+
+- コード：MIT（[LICENSE](LICENSE)）
+- 記事：CC BY 4.0
+
+開発の進め方は Issues を参照してください。
+
+## ローカル起動
+
+Node.js は 22.12 系、24 系、または 26 以上です（`package.json` の `engines` と同じ）。@supabase/supabase-js は 22 以上、Vitest は 22.12 系・24 系・26 以上を要求します。
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+`.env.local` に次の「環境変数」の値を入れます。値は空のままでも `npm run dev` でトップページは開きます。Supabase を呼ぶ処理は、公開用の URL と anon キーが揃ってから動きます。
+
+```bash
+npm run dev
+```
+
+ブラウザで http://localhost:3000 を開きます。
+
+確認用のコマンド:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+`.env.local` を含む `.env*` は Git に含めません。例外は値を空にした [`.env.example`](.env.example) だけです。
+
+## 社長が行う設定
+
+次の作業は、このリポジトリのコード変更ではありません。社長が Supabase と Vercel のダッシュボードで行います。秘密の値はチャットや Git に書かず、パスワードマネージャと各サービスのシークレット設定だけに置きます。
+
+### Supabase プロジェクトの作成とマイグレーション
+
+1. [Supabase Dashboard](https://supabase.com/dashboard) で新しいプロジェクトを作ります。データベースのパスワードはパスワードマネージャに保存し、リポジトリには書きません。
+2. プロジェクトの **Settings → API Keys** を開きます。Project URL と、ブラウザに出してよい低権限のキー、サーバー専用の高権限のキーを控えます。変数名との対応は下の「環境変数」を見てください。
+3. [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) を入れます。
+4. リポジトリのルートで、次を実行します。`<project-ref>` はダッシュボード URL `https://supabase.com/dashboard/project/<project-ref>` の部分です。
+
+```bash
+supabase init
+supabase login
+supabase link --project-ref <project-ref>
+```
+
+5. スキーマの SQL は `supabase/migrations/` にコミットします。ファイルがリポジトリに入ったあと、リモートへ適用します。
+
+```bash
+supabase db push --dry-run
+supabase db push
+```
+
+マイグレーションファイルがまだ無い間は、`db push` が適用するものはありません。スキーマは後続の Issue で追加します。`supabase db reset --linked` はリモートのデータを消すので、本番では使いません。
+
+### Vercel へのインポート
+
+1. [Vercel の新しいプロジェクト](https://vercel.com/new) を開きます。
+2. この Git リポジトリを Import します。Framework Preset は Next.js のままにします。
+3. 本番へ出す前に、下の環境変数を Production と Preview の両方へ入れます。
+4. Deploy します。公開サイトのオリジンが決まったら、`NEXT_PUBLIC_SITE_URL` をそのオリジン（末尾のスラッシュなし）に更新して再デプロイします。
+
+### 環境変数
+
+| 名前 | 置く場所 | 内容 |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | ブラウザに出る | Supabase の Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザに出る | 低権限のキー。legacy の `anon`、または publishable key（`sb_publishable_...`）。RLS の範囲だけを読む |
+| `SUPABASE_SERVICE_ROLE_KEY` | サーバーだけ | 高権限のキー。legacy の `service_role`、または secret key（`sb_secret_...`）。RLS を迂回する。`NEXT_PUBLIC_` は付けない |
+| `KURO_API_TOKEN_SHA256` | サーバーだけ | 投稿 API の Bearer トークンそのものではなく、その SHA-256（16進）。生のトークンは環境変数にも Git にも置かない |
+| `NEXT_PUBLIC_SITE_URL` | ブラウザに出る | サイトのオリジン。ローカルは `http://localhost:3000`。本番は公開 URL |
+
+変数名はこのリポジトリの仕様です。Supabase は `anon` / `service_role` から publishable / secret key へ移っています。どちらも同じ変数に入れます。secret key はブラウザでは拒否されるので、サービス用クライアント（`lib/supabase/service.ts`、`server-only`）以外からは読みません。
+
+`KURO_API_TOKEN_SHA256` は、トークンをシェルの環境変数に載せたうえで次のコマンドの出力を使います。出力のハッシュだけを Vercel に保存します。
+
+```bash
+node -e "const {createHash}=require('node:crypto'); const token=process.env.KURO_API_TOKEN; if(!token) process.exit(1); process.stdout.write(createHash('sha256').update(token).digest('hex'))"
+```
+
+Vercel では `SUPABASE_SERVICE_ROLE_KEY` と `KURO_API_TOKEN_SHA256` を Sensitive にして、Production と Preview に設定します。Development は各自の `.env.local` です。
+
+### プレビューの Vercel Authentication
+
+プレビュー URL は Vercel にログインできる人だけが開けるようにします。本番の公開ドメインは、誰でも記事を読めるように保護しません。
+
+1. Vercel のプロジェクトを開きます。
+2. サイドバーの **Security**（項目が無い場合は **Settings**）から **Deployment Protection** を開きます。
+3. 保護方法に **Vercel Authentication** を選びます。
+4. 保護範囲は **Standard Protection**（本番ドメイン以外のデプロイを保護）にします。**All Deployments** は本番の公開ページまでログイン必須になるので選びません。
+5. Save します。
+
+新しいプロジェクトでは保護が最初から有効なことがあります。Preview が保護され、本番ドメインが公開のままであることを確認します。
+
+### Web Analytics と Speed Insights
+
+計測は Cookie を使いません。有効化は社長がダッシュボードで行います。
+
+1. プロジェクトの **Analytics** を開き、**Enable** を押します。
+2. プロジェクトの **Speed Insights** を開き、有効にします。
+3. アプリ側の計測コンポーネント（`@vercel/analytics` と `@vercel/speed-insights`）は別の変更でコードに入ります。ダッシュボードを有効にしたあと、そのコードを含むデプロイが計測を始めます。
+
+このサイトのページから LLM の API は呼びません。
