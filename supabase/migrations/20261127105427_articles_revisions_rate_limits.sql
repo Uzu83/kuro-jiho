@@ -1,6 +1,6 @@
 -- 記事、改訂履歴、見送り、レート制限、管理者の許可リスト。
 -- 前提は Supabase のロール（anon / authenticated / service_role）と
--- auth.jwt() / auth.uid()。このファイルはリモートへ適用しない。
+-- auth.jwt() / auth.uid()。
 --
 -- 記事の UPDATE と同じトランザクションで、改訂の種別を渡せる。
 --   select set_config('kuro.change_type', 'correction', true);

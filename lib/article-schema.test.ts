@@ -21,7 +21,7 @@ import {
 const migration = readFileSync(
   path.join(
     import.meta.dirname,
-    "../supabase/migrations/20261127073300_articles_revisions_rate_limits.sql",
+    "../supabase/migrations/20261127105427_articles_revisions_rate_limits.sql",
   ),
   "utf8",
 );
