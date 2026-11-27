@@ -37,6 +37,7 @@ export type EditableArticle = {
   verification: unknown;
   related: string[];
   author: string;
+  version: number;
 };
 
 export type AdminWriteStore = {
@@ -44,7 +45,7 @@ export type AdminWriteStore = {
   updateArticle(
     id: string,
     patch: ArticlePatch,
-    revision: { changeType: string; changeNote: string | null },
+    revision: { changeType: string; changeNote: string | null; expectedVersion: number },
   ): Promise<{ slug: string; theme: string; date: string }>;
   findPublishedId(date: string, slot: string): Promise<string | null>;
 };
@@ -378,6 +379,7 @@ export async function handleAdminSubmission(input: {
     const saved = await input.store.updateArticle(input.current.id, toPatch(parsed.data), {
       changeType: parsed.data.change_type,
       changeNote: parsed.data.change_note ?? null,
+      expectedVersion: input.current.version,
     });
     input.revalidate({
       slug: saved.slug,

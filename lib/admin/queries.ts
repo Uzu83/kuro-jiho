@@ -187,7 +187,7 @@ export async function loadEditable(slug: string): Promise<EditableArticle | null
   const { data, error } = await supabase
     .from("articles")
     .select(
-      "id, slug, title, theme, slot, date, status, published_at, summary, body_md, sources, verification, related, author",
+      "id, slug, title, theme, slot, date, status, published_at, summary, body_md, sources, verification, related, author, version",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -213,6 +213,7 @@ export async function loadEditable(slug: string): Promise<EditableArticle | null
     sources: data.sources,
     verification: data.verification,
     related: asStringArray(data.related),
+    version: data.version,
     author: data.author,
   };
 }

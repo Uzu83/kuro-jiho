@@ -221,6 +221,7 @@ export type Database = {
           patch: Json;
           change_type: string;
           change_note: string | null;
+          expected_version: number;
         };
         Returns: Database["public"]["Tables"]["articles"]["Row"][];
       };

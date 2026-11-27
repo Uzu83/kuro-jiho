@@ -84,6 +84,7 @@ function publishedArticle(): EditableArticle {
     verification: { checked: input.checked, removed: [] },
     related: [],
     author: "kuro",
+    version: 1,
   };
 }
 
@@ -378,7 +379,7 @@ describe("article admin mutations", () => {
     expect(store.updateArticle).toHaveBeenCalledWith(
       "article-1",
       expect.objectContaining({ title: "見出しを整えた" }),
-      { changeType: "update", changeNote: null },
+      { changeType: "update", changeNote: null, expectedVersion: 1 },
     );
 
     const published = await handleAdminSubmission({
@@ -432,7 +433,7 @@ describe("article admin mutations", () => {
     expect(store.updateArticle).toHaveBeenCalledWith(
       "article-1",
       expect.objectContaining({ title: "訂正後" }),
-      { changeType: "correction", changeNote: "数値を直した" },
+      { changeType: "correction", changeNote: "数値を直した", expectedVersion: 1 },
     );
   });
 

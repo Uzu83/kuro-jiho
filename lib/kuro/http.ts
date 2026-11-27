@@ -7,6 +7,7 @@ export const MESSAGES = {
   notFound: "記事が見つかりません",
   slotConflict: "同じ日・同じ枠に公開済みの記事があります",
   slugConflict: "同じ slug の記事があります",
+  staleArticle: "記事が他の更新で変わっています。取り直してください",
   invalidArticleJson: "記事：JSONとして読めません",
   invalidSkipJson: "見送り：JSONとして読めません",
   days: "days：1〜366の整数にしてください",
