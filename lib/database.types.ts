@@ -211,6 +211,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      prune_kuro_rate_limits: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
       kuro_apply_article_update: {
         Args: {
           target_id: string;

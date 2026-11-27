@@ -152,5 +152,6 @@ export type KuroStore = {
   insertArticle(article: ArticleWrite): Promise<SavedArticle>;
   updateArticle(id: string, patch: ArticlePatch, revision: ArticleRevision): Promise<SavedArticle>;
   insertSkip(input: { date: string; slot: string; reason: string | null }): Promise<SkipRecord>;
+  pruneKuroRateLimits(): Promise<void>;
   consumeRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean>;
 };

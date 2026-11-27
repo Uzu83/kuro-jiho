@@ -23,7 +23,7 @@ import {
   handleUpdateArticle,
   type KuroDeps,
 } from "@/lib/kuro/handlers";
-import { authFailureKey, retryAfterSeconds } from "@/lib/kuro/limits";
+import { authFailureKey, KURO_LIMITS, retryAfterSeconds } from "@/lib/kuro/limits";
 import { ARTICLE_CACHE_TAG, revalidateArticleSurfaces, revalidateSkipSurfaces } from "@/lib/kuro/revalidate";
 import {
   mapDatabaseError,
@@ -213,6 +213,8 @@ class MemoryStore implements KuroStore {
     return { id: "skip-1", date: input.date, slot: input.slot, status: "skipped" as const };
   }
 
+  async pruneKuroRateLimits() {}
+
   async consumeRateLimit(key: string, limit: number, windowSeconds: number) {
     this.calls.push({ key, limit, windowSeconds });
     const count = this.counts.get(key) ?? 0;
@@ -399,6 +401,26 @@ describe("kuro api", () => {
     expect(allowed.status).toBe(201);
     expect(store.counts.get(authFailureKey(ip))).toBe(10);
     expectTokenHidden(JSON.stringify(blockedBody));
+  });
+
+  it("does not store a new address once auth failures hit the global cap", async () => {
+    for (let index = 0; index < KURO_LIMITS.authFailureGlobal.limit; index += 1) {
+      const response = await handleCreateArticle(
+        request("/api/kuro/articles", { body: validCreate(), ip: `203.0.113.${index}` }),
+        callDeps({ now: rateNow }),
+      );
+      expect(response.status).toBe(401);
+    }
+
+    const blockedIp = "198.51.100.77";
+    const blocked = await handleCreateArticle(
+      request("/api/kuro/articles", { body: validCreate(), ip: blockedIp }),
+      callDeps({ now: rateNow }),
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("retry-after")).toBe(String(retryAfterSeconds(60, rateNow)));
+    expect(store.counts.has(authFailureKey(blockedIp))).toBe(false);
+    expect(store.counts.get(KURO_LIMITS.authFailureGlobal.key)).toBe(KURO_LIMITS.authFailureGlobal.limit);
   });
 
   it("uses x-real-ip ahead of the forwarded list", async () => {
@@ -1103,6 +1125,9 @@ describe("kuro api against postgres", () => {
         }
         return { ...row, status: "skipped" };
       },
+      async pruneKuroRateLimits() {
+        await service(`select public.prune_kuro_rate_limits()`);
+      },
       async consumeRateLimit(key, limit, windowSeconds) {
         const rows = await service<{ ok: boolean }>(
           `select public.consume_rate_limit($1, $2, $3) as ok`,
@@ -1221,6 +1246,44 @@ describe("kuro api against postgres", () => {
     expect(names).toContain("service_role");
     expect(names).not.toContain("anon");
     expect(names).not.toContain("PUBLIC");
+
+    await db.exec(`truncate table public.api_rate_limits`);
+    await db.query(
+      `insert into public.api_rate_limits (key, window_start, count) values
+         ('kuro:auth-fail:old', clock_timestamp() - interval '2 minutes', 1),
+         ('kuro:auth-fail:current', clock_timestamp() - interval '10 seconds', 1),
+         ('kuro:auth-fail', clock_timestamp() - interval '2 minutes', 1),
+         ('kuro:write:hour', clock_timestamp() - interval '2 hours', 1),
+         ('kuro:write:hour', clock_timestamp() - interval '10 minutes', 1),
+         ('kuro:write:day', clock_timestamp() - interval '2 days', 1),
+         ('kuro:write:day', clock_timestamp() - interval '2 hours', 1),
+         ('other:keep', clock_timestamp() - interval '30 days', 1)`,
+    );
+    await service(`select public.prune_kuro_rate_limits()`);
+    const remaining = await db.query<{ key: string }>(
+      `select key from public.api_rate_limits order by key, window_start`,
+    );
+    expect(remaining.rows.map((row) => row.key)).toEqual([
+      "kuro:auth-fail:current",
+      "kuro:write:day",
+      "kuro:write:hour",
+      "other:keep",
+    ]);
+
+    await db.exec("begin");
+    await db.exec("set local role anon");
+    await expect(db.query(`select public.prune_kuro_rate_limits()`)).rejects.toSatisfy(
+      (error: unknown) => sqlState(error) === "42501",
+    );
+    await db.exec("rollback");
+
+    await expect(
+      service(`delete from public.api_rate_limits where key = 'other:keep'`),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
+    const kept = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.api_rate_limits where key = 'other:keep'`,
+    );
+    expect(kept.rows[0]?.count).toBe(1);
 
     await expect(
       service(
