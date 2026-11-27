@@ -1,5 +1,33 @@
 const TOKYO = "Asia/Tokyo";
 
+/** YYYY-MM-DD の実在する暦日。サーバーのローカルタイムゾーンは見ない。 */
+export function isIsoDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+/** 暦日の表示。時刻のタイムゾーン変換はしない。 */
+export function formatCalendarDate(isoDate: string): string {
+  if (!isIsoDate(isoDate)) {
+    return isoDate;
+  }
+
+  const [year, month, day] = isoDate.split("-");
+  return `${Number(year)}年${Number(month)}月${Number(day)}日`;
+}
+
 /** 日本時間の暦日。サーバーのタイムゾーンには依存しない。 */
 export function jstDate(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
