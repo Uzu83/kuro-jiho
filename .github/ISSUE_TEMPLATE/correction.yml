@@ -1,0 +1,27 @@
+name: 誤りを報告
+description: 記事のURL、誤りの箇所、根拠のURLだけを書いてください。本名やメールアドレスは書かないでください。
+body:
+  - type: input
+    id: article_url
+    attributes:
+      label: 記事URL
+      description: 誤りのあった記事のURLです。記事ページから開くと入ります。
+      placeholder: https://example.com/articles/2026-12-01-07-example
+    validations:
+      required: true
+  - type: textarea
+    id: error_location
+    attributes:
+      label: 誤りの箇所
+      description: どの文か、どの数字かを書いてください。
+      placeholder: 本文の人数が、出典の人数と違います。
+    validations:
+      required: true
+  - type: input
+    id: evidence_url
+    attributes:
+      label: 根拠URL
+      description: 正しい内容が分かる一次情報のURLです。
+      placeholder: https://example.com/notice
+    validations:
+      required: true

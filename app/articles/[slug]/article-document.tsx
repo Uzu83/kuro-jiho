@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteFooter } from "@/app/site/footer";
 import type { PublicArticle } from "@/lib/articles/public";
 
 const AI_LABEL = "この記事はAI記者クロが公式発表をもとに作成しました。";
@@ -166,6 +167,7 @@ export function ArticleDocument({
           </a>
         </p>
       </article>
+      {embedded ? null : <SiteFooter />}
     </Tag>
   );
 }

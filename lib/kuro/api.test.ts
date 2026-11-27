@@ -849,6 +849,7 @@ describe("revalidation", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/sports");
     expect(revalidatePath).toHaveBeenCalledWith("/archive/2026-12-01");
     expect(revalidatePath).toHaveBeenCalledWith("/archive/2026-11-30");
+    expect(revalidatePath).toHaveBeenCalledWith("/corrections");
     expect(revalidatePath).toHaveBeenCalledWith("/feed.xml");
     expect(revalidatePath).toHaveBeenCalledWith("/feed/fukuoka.xml");
     expect(revalidateTag).toHaveBeenCalledWith(ARTICLE_CACHE_TAG, { expire: 0 });

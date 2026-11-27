@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteFooter } from "@/app/site/footer";
 
 export default function ArticleNotFound() {
   return (
@@ -9,6 +10,7 @@ export default function ArticleNotFound() {
       <p>
         <Link href="/">トップへ戻る</Link>
       </p>
+      <SiteFooter />
     </main>
   );
 }
