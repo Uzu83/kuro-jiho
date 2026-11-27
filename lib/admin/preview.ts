@@ -39,9 +39,13 @@ export async function buildArticlePreview(input: {
 
   const summary = lines(input.summary);
 
+  const slot = /^\d{4}-\d{2}-\d{2}-(07|12|17|20)-/.exec(input.slug)?.[1] ?? "";
+
   return {
     slug: input.slug,
     title: input.title.trim().length > 0 ? input.title.trim() : "（無題）",
+    theme: input.theme,
+    slot,
     themeLabel: themeLabel(input.theme),
     publishedAt: nowIso,
     publishedLabel: label,

@@ -107,6 +107,8 @@ function publicArticle(): PublicArticle {
   return {
     slug: "2026-12-01-07-notice",
     title: "告示",
+    theme: "fukuoka",
+    slot: "07",
     themeLabel: "福岡市",
     publishedAt: "2026-12-01T07:00:00+09:00",
     publishedLabel: "2026年12月1日 7:00（日本時間）",

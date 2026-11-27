@@ -18,7 +18,7 @@ export type ArticleSurface = {
 };
 
 /**
- * 記事ページ、トップ、テーマ一覧、アーカイブ、訂正一覧、フィードを無効化する。
+ * 記事ページ、トップ、テーマ一覧、アーカイブ、訂正一覧、フィード、サイトマップを無効化する。
  * expire: 0 なので、次の表示は古いキャッシュを返さず読み直す。
  */
 export function revalidateArticleSurfaces(surface: ArticleSurface): void {
@@ -28,6 +28,7 @@ export function revalidateArticleSurfaces(surface: ArticleSurface): void {
     `/archive/${surface.date}`,
     "/corrections",
     "/feed.xml",
+    "/sitemap.xml",
   ]);
 
   for (const theme of ARTICLE_THEMES) {

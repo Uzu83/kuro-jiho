@@ -852,6 +852,7 @@ describe("revalidation", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/corrections");
     expect(revalidatePath).toHaveBeenCalledWith("/feed.xml");
     expect(revalidatePath).toHaveBeenCalledWith("/feed/fukuoka.xml");
+    expect(revalidatePath).toHaveBeenCalledWith("/sitemap.xml");
     expect(revalidateTag).toHaveBeenCalledWith(ARTICLE_CACHE_TAG, { expire: 0 });
 
     revalidateSkipSurfaces("2026-12-01");

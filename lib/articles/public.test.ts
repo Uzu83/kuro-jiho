@@ -48,6 +48,7 @@ function row(overrides: Partial<PublishedArticleRow> = {}): PublishedArticleRow 
     slug,
     title: "福岡市が告示を公開",
     theme: "fukuoka",
+    slot: "07",
     status: "published",
     published_at: "2026-12-01T07:00:00+09:00",
     updated_at: "2026-12-02T09:30:00+09:00",
@@ -146,7 +147,7 @@ describe("formatJst", () => {
 
 describe("article page", () => {
   it("shows the AI label, sources, verification, and correction history", async () => {
-    const { html } = await htmlFor(row());
+    const { html, article } = await htmlFor(row());
     const text = visibleText(html);
 
     expect(text).toContain(
@@ -190,6 +191,10 @@ describe("article page", () => {
     expect(text).toContain("前日のメモ");
     expect(html).toContain('href="/articles/2026-11-30-20-older-note"');
     expect(text).not.toContain("下書きのメモ");
+    expect(article.theme).toBe("fukuoka");
+    expect(article.slot).toBe("07");
+    expect(html).toContain('data-analytics="source_click"');
+    expect(html).toContain('data-analytics="report_error_click"');
     expect(html).toContain("template=correction.yml");
     expect(html).toContain(
       "article_url=" + encodeURIComponent("https://news.example/articles/2026-12-01-07-notice"),

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ArticleAnalytics } from "@/app/articles/[slug]/article-analytics";
 import { ArticleDocument } from "@/app/articles/[slug]/article-document";
 import { loadPublishedArticle } from "@/lib/articles/load";
+import { newsArticleJsonLd, serializeJsonLd } from "@/lib/seo/news-article";
+import { formatJstTimestamp } from "@/lib/seo/time";
+import { resolveSiteOrigin } from "@/lib/site/origin";
 
 export const revalidate = 3600;
 
@@ -21,9 +25,24 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     return { title: "記事が見つかりません｜クロの時報" };
   }
 
+  const origin = resolveSiteOrigin();
+  const description = article.summary.join(" ");
+  const publishedTime = formatJstTimestamp(article.publishedAt) ?? undefined;
+  const modifiedTime = formatJstTimestamp(article.updatedAt) ?? undefined;
+
   return {
     title: `${article.title}｜クロの時報`,
-    description: article.summary.join(" "),
+    description,
+    openGraph: {
+      title: article.title,
+      description,
+      type: "article",
+      locale: "ja_JP",
+      siteName: "クロの時報",
+      url: `${origin}/articles/${article.slug}`,
+      publishedTime,
+      modifiedTime,
+    },
   };
 }
 
@@ -34,5 +53,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
-  return <ArticleDocument article={article} />;
+  const jsonLd = newsArticleJsonLd(article, resolveSiteOrigin());
+
+  return (
+    <>
+      {jsonLd ? (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      ) : null}
+      <ArticleAnalytics theme={article.theme} slot={article.slot} slug={article.slug}>
+        <ArticleDocument article={article} />
+      </ArticleAnalytics>
+    </>
+  );
 }
