@@ -22,6 +22,14 @@ function fail(): never {
   throw new Error("記事の取得に失敗しました");
 }
 
+/** PostgREST は件数を超える Range を 416 / PGRST103 にする。空配列にはならない。 */
+function isUnsatisfiableRange(error: unknown, status: number | undefined): boolean {
+  if (status === 416) {
+    return true;
+  }
+  return typeof error === "object" && error !== null && "code" in error && error.code === "PGRST103";
+}
+
 function summaryLine(value: readonly string[]): string {
   for (const item of value) {
     if (typeof item !== "string") {
@@ -94,6 +102,18 @@ function articlesFrom(rows: readonly ArticleListRow[] | null, theme?: ArticleThe
  * 失敗したときはデータベースのメッセージを返さない。
  */
 export function createListingDirectory(client: Client): ListingDirectory {
+  async function countTheme(theme: ArticleTheme): Promise<number> {
+    const { count, error } = await client
+      .from("articles")
+      .select("slug", { count: "exact", head: true })
+      .eq("status", "published")
+      .eq("theme", theme);
+    if (error || typeof count !== "number") {
+      fail();
+    }
+    return count;
+  }
+
   return {
     async listPublishedOnDate(date) {
       const { data, error } = await client
@@ -146,7 +166,7 @@ export function createListingDirectory(client: Client): ListingDirectory {
     async listThemePage(theme, page, pageSize) {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      const { data, error, count } = await client
+      const { data, error, count, status } = await client
         .from("articles")
         .select(ARTICLE_LIST_COLUMNS, { count: "exact" })
         .eq("status", "published")
@@ -154,6 +174,9 @@ export function createListingDirectory(client: Client): ListingDirectory {
         .order("published_at", { ascending: false })
         .order("slug", { ascending: false })
         .range(from, to);
+      if (isUnsatisfiableRange(error, status)) {
+        return { articles: [], total: await countTheme(theme) };
+      }
       if (error || typeof count !== "number") {
         fail();
       }
