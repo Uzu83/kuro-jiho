@@ -93,9 +93,27 @@ function byNewest(a: FeedArticle, b: FeedArticle): number {
   return a.slug < b.slug ? 1 : -1;
 }
 
+/** XML 1.0 の Char。補助面はコードポイントで残し、孤立したサロゲートは落とす。 */
+function isXmlChar(code: number): boolean {
+  return (
+    code === 0x9 ||
+    code === 0xa ||
+    code === 0xd ||
+    (code >= 0x20 && code <= 0xd7ff) ||
+    (code >= 0xe000 && code <= 0xfffd) ||
+    (code >= 0x10000 && code <= 0x10ffff)
+  );
+}
+
 export function escapeXml(value: string): string {
-  return value
-    .replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD]/g, "")
+  let text = "";
+  for (const char of value) {
+    const code = char.codePointAt(0);
+    if (code !== undefined && isXmlChar(code)) {
+      text += char;
+    }
+  }
+  return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

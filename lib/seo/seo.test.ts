@@ -154,6 +154,26 @@ describe("feeds and sitemap", () => {
     expect(escaped).toContain("A &amp; B &lt;script&gt;");
     expect(escaped).toContain("1 &lt; 2");
     expect(escapeXml("a&b")).toBe("a&amp;b");
+    expect(escapeXml("𠮷田選手が優勝🎉")).toBe("𠮷田選手が優勝🎉");
+    expect(escapeXml("a\u0000b\u0008c")).toBe("abc");
+    expect(escapeXml("a\uFFFE\uFFFFb")).toBe("ab");
+    expect(escapeXml("a\uD800b")).toBe("ab");
+
+    const named = buildFeedXml({
+      origin,
+      theme: "sports",
+      articles: publishedFeedArticles([
+        row({
+          slug: "2026-12-03-20-winner",
+          theme: "sports",
+          title: "𠮷田選手が優勝🎉",
+          summary: ["一位", "公式", "詳細"],
+        }),
+      ]),
+      now,
+    });
+    assertWellFormed(named);
+    expect(named).toContain("<title>𠮷田選手が優勝🎉</title>");
 
     const urls = sitemapEntries(origin, articles).map((entry) => entry.url);
     expect(urls).toContain("https://news.example/");
