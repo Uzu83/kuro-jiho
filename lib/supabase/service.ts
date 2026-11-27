@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { Database } from "@/lib/database.types";
 
 const serviceEnvSchema = z.object({
   url: z.url(),
@@ -25,7 +26,7 @@ export function createServiceClient() {
     );
   }
 
-  return createClient(parsed.data.url, parsed.data.serviceRoleKey, {
+  return createClient<Database>(parsed.data.url, parsed.data.serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
