@@ -23,12 +23,13 @@ import {
   handleUpdateArticle,
   type KuroDeps,
 } from "@/lib/kuro/handlers";
-import { authFailureKey, retryAfterSeconds } from "@/lib/kuro/limits";
+import { authFailureKey, KURO_LIMITS, retryAfterSeconds } from "@/lib/kuro/limits";
 import { ARTICLE_CACHE_TAG, revalidateArticleSurfaces, revalidateSkipSurfaces } from "@/lib/kuro/revalidate";
 import {
   mapDatabaseError,
   SlugConflictError,
   SlotConflictError,
+  StaleArticleError,
   sourceUrls,
   type ArticlePatch,
   type ArticleRecord,
@@ -189,6 +190,9 @@ class MemoryStore implements KuroStore {
     const row = this.articles.find((article) => article.id === id);
     if (!row) {
       throw new Error("missing");
+    }
+    if (row.version !== revision.expectedVersion) {
+      throw new StaleArticleError();
     }
     this.revisions.push({
       articleId: id,
@@ -395,6 +399,26 @@ describe("kuro api", () => {
     expect(allowed.status).toBe(201);
     expect(store.counts.get(authFailureKey(ip))).toBe(10);
     expectTokenHidden(JSON.stringify(blockedBody));
+  });
+
+  it("does not store a new address once auth failures hit the global cap", async () => {
+    for (let index = 0; index < KURO_LIMITS.authFailureGlobal.limit; index += 1) {
+      const response = await handleCreateArticle(
+        request("/api/kuro/articles", { body: validCreate(), ip: `203.0.113.${index}` }),
+        callDeps({ now: rateNow }),
+      );
+      expect(response.status).toBe(401);
+    }
+
+    const blockedIp = "198.51.100.77";
+    const blocked = await handleCreateArticle(
+      request("/api/kuro/articles", { body: validCreate(), ip: blockedIp }),
+      callDeps({ now: rateNow }),
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("retry-after")).toBe(String(retryAfterSeconds(60, rateNow)));
+    expect(store.counts.has(authFailureKey(blockedIp))).toBe(false);
+    expect(store.counts.get(KURO_LIMITS.authFailureGlobal.key)).toBe(KURO_LIMITS.authFailureGlobal.limit);
   });
 
   it("uses x-real-ip ahead of the forwarded list", async () => {
@@ -732,6 +756,38 @@ describe("kuro api", () => {
     ]);
   });
 
+  it("rejects an update when the article changed after it was read", async () => {
+    await handleCreateArticle(request("/api/kuro/articles", { token, body: validCreate() }), callDeps());
+    const original = store.updateArticle.bind(store);
+    store.updateArticle = async (id, patch, revision) => {
+      const row = store.articles.find((article) => article.id === id);
+      if (row && row.version === revision.expectedVersion) {
+        row.version += 1;
+      }
+      return original(id, patch, revision);
+    };
+
+    const response = await handleUpdateArticle(
+      request("/api/kuro/articles/2026-12-01-07-fukuoka-notice", {
+        method: "PATCH",
+        token,
+        body: {
+          change_type: "correction",
+          change_note: "見出しの数値を訂正",
+          title: "福岡市が告示を更新",
+        },
+      }),
+      "2026-12-01-07-fukuoka-notice",
+      callDeps(),
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "記事が他の更新で変わっています。取り直してください",
+    });
+    expect(store.articles[0]?.title).toBe("福岡市が告示を公開");
+    expect(store.revisions).toEqual([]);
+  });
+
   it("requires a note when updating a published article", async () => {
     await handleCreateArticle(
       request("/api/kuro/articles", {
@@ -868,6 +924,7 @@ describe("database errors", () => {
       mapDatabaseError("23505", 'duplicate key value violates unique constraint "articles_one_published_per_slot"'),
     ).toBeInstanceOf(SlotConflictError);
     expect(mapDatabaseError("23514", "correction requires a note").message).toBe("correction note required");
+    expect(mapDatabaseError("40001", "stale article version")).toBeInstanceOf(StaleArticleError);
     expect(mapDatabaseError("XX000", "secret detail").message).toBe("database request failed");
   });
 });
@@ -1042,8 +1099,8 @@ describe("kuro api against postgres", () => {
         try {
           const rows = await service<{ slug: string; version: number; theme: string; date: string }>(
             `select slug, version, theme, date::text as date
-             from public.kuro_apply_article_update($1::uuid, $2::jsonb, $3, $4)`,
-            [id, JSON.stringify(patch), revision.changeType, revision.changeNote],
+             from public.kuro_apply_article_update($1::uuid, $2::jsonb, $3, $4, $5)`,
+            [id, JSON.stringify(patch), revision.changeType, revision.changeNote, revision.expectedVersion],
           );
           const row = rows[0];
           if (!row) {
@@ -1153,7 +1210,7 @@ describe("kuro api against postgres", () => {
 
     await expect(
       service(
-        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', '   ')`,
+        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'correction', '   ', 1)`,
         [id.rows[0]?.id, JSON.stringify({ title: "失敗" })],
       ),
     ).rejects.toSatisfy((error: unknown) => sqlState(error) === "23514");
@@ -1168,7 +1225,7 @@ describe("kuro api against postgres", () => {
     await db.exec("begin");
     await db.exec("set local role anon");
     await expect(
-      db.query(`select * from public.kuro_apply_article_update($1::uuid, '{}'::jsonb, 'update', null)`, [
+      db.query(`select * from public.kuro_apply_article_update($1::uuid, '{}'::jsonb, 'update', null, 1)`, [
         id.rows[0]?.id,
       ]),
     ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
@@ -1185,6 +1242,99 @@ describe("kuro api against postgres", () => {
     expect(names).toContain("service_role");
     expect(names).not.toContain("anon");
     expect(names).not.toContain("PUBLIC");
+
+    await db.exec(`truncate table public.api_rate_limits`);
+    await db.query(
+      `insert into public.api_rate_limits (key, window_start, count) values
+         ('kuro:auth-fail:old', clock_timestamp() - interval '2 minutes', 1),
+         ('kuro:auth-fail:current', clock_timestamp() - interval '10 seconds', 1),
+         ('kuro:auth-fail', clock_timestamp() - interval '2 minutes', 1),
+         ('kuro:write:hour', clock_timestamp() - interval '2 hours', 1),
+         ('kuro:write:hour', clock_timestamp() - interval '10 minutes', 1),
+         ('kuro:write:day', clock_timestamp() - interval '2 days', 1),
+         ('kuro:write:day', clock_timestamp() - interval '2 hours', 1),
+         ('other:keep', clock_timestamp() - interval '30 days', 1)`,
+    );
+    const consumed = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:write:hour', 20, 3600) as ok`,
+    );
+    expect(consumed[0]?.ok).toBe(true);
+    const remaining = await db.query<{ key: string; age: number }>(
+      `select key, extract(epoch from clock_timestamp() - window_start)::int as age
+       from public.api_rate_limits
+       order by key, window_start`,
+    );
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail:old")).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail" && row.age > 60)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:hour" && row.age > 3600)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:day" && row.age > 86400)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail:current")).toBe(true);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:day" && row.age < 86400)).toBe(true);
+    expect(remaining.rows.some((row) => row.key === "other:keep")).toBe(true);
+    expect(remaining.rows.length).toBeLessThanOrEqual(6);
+
+    await db.exec(`truncate table public.api_rate_limits`);
+    for (let index = 0; index < 60; index += 1) {
+      const added = await service<{ ok: boolean }>(
+        `select public.consume_rate_limit($1, 10, 60) as ok`,
+        [`kuro:auth-fail:${index}`],
+      );
+      expect(added[0]?.ok).toBe(true);
+    }
+    const extra = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:auth-fail:extra', 10, 60) as ok`,
+    );
+    expect(extra[0]?.ok).toBe(false);
+    const bounded = await db.query<{ count: number }>(
+      `select count(*)::int as count
+       from public.api_rate_limits
+       where key like 'kuro:auth-fail:%'`,
+    );
+    expect(bounded.rows[0]?.count).toBe(60);
+    const repeat = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:auth-fail:0', 10, 60) as ok`,
+    );
+    expect(repeat[0]?.ok).toBe(true);
+    const stillBounded = await db.query<{ count: number }>(
+      `select count(*)::int as count
+       from public.api_rate_limits
+       where key like 'kuro:auth-fail:%'`,
+    );
+    expect(stillBounded.rows[0]?.count).toBe(60);
+
+    await db.exec("begin");
+    await db.exec("set local role anon");
+    await expect(
+      db.query(`select public.consume_rate_limit('kuro:auth-fail:anon', 10, 60)`),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
+    await db.exec("rollback");
+
+    await db.query(
+      `insert into public.api_rate_limits (key, window_start, count)
+       values ('other:keep', clock_timestamp() - interval '30 days', 1)`,
+    );
+    await expect(
+      service(`delete from public.api_rate_limits where key = 'other:keep'`),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
+    const kept = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.api_rate_limits where key = 'other:keep'`,
+    );
+    expect(kept.rows[0]?.count).toBe(1);
+
+    await expect(
+      service(
+        `select * from public.kuro_apply_article_update($1::uuid, $2::jsonb, 'update', null, 2)`,
+        [id.rows[0]?.id, JSON.stringify({ title: "古い版への更新" })],
+      ),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "40001");
+    const still = await db.query<{ title: string; version: number }>(
+      `select title, version from public.articles`,
+    );
+    expect(still.rows).toEqual([{ title: "福岡市が告示を公開", version: 1 }]);
+    const afterStale = await db.query<{ count: number }>(
+      `select count(*)::int as count from public.article_revisions`,
+    );
+    expect(afterStale.rows[0]?.count).toBe(0);
   });
 
   it("returns 409 for a second published article in the same slot", async () => {
