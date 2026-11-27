@@ -211,6 +211,15 @@ export type Database = {
         };
         Returns: boolean;
       };
+      kuro_apply_article_update: {
+        Args: {
+          target_id: string;
+          patch: Json;
+          change_type: string;
+          change_note: string | null;
+        };
+        Returns: Database["public"]["Tables"]["articles"]["Row"][];
+      };
     };
     Enums: {
       [_ in never]: never;

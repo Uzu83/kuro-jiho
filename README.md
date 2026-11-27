@@ -104,7 +104,7 @@ insert into public.admin_allowlist (email) values ('name@example.com');
 | `NEXT_PUBLIC_SUPABASE_URL` | ブラウザに出る | Supabase の Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザに出る | 低権限のキー。legacy の `anon`、または publishable key（`sb_publishable_...`）。RLS の範囲だけを読む |
 | `SUPABASE_SERVICE_ROLE_KEY` | サーバーだけ | 高権限のキー。legacy の `service_role`、または secret key（`sb_secret_...`）。RLS を迂回する。`NEXT_PUBLIC_` は付けない |
-| `KURO_API_TOKEN_SHA256` | サーバーだけ | 投稿 API の Bearer トークンそのものではなく、その SHA-256（16進）。生のトークンは環境変数にも Git にも置かない |
+| `KURO_API_TOKEN_SHA256` | サーバーだけ | 投稿 API の Bearer トークンそのものではなく、その SHA-256（16進）。差し替え中はカンマ区切りで複数（最大8件）。生のトークンは環境変数にも Git にも置かない |
 | `NEXT_PUBLIC_SITE_URL` | ブラウザに出る | サイトのオリジン。ローカルは `http://localhost:3000`。本番は公開 URL |
 
 変数名はこのリポジトリの仕様です。Supabase は `anon` / `service_role` から publishable / secret key へ移っています。どちらも同じ変数に入れます。secret key はブラウザでは拒否されるので、サービス用クライアント（`lib/supabase/service.ts`、`server-only`）以外からは読みません。
@@ -116,6 +116,52 @@ node -e "const {createHash}=require('node:crypto'); const token=process.env.KURO
 ```
 
 Vercel では `SUPABASE_SERVICE_ROLE_KEY` と `KURO_API_TOKEN_SHA256` を Sensitive にして、Production と Preview に設定します。Development は各自の `.env.local` です。
+
+### 投稿 API
+
+クロはこの API だけから記事を作り、直します。削除はありません。平文トークンはリクエストの `Authorization` ヘッダー以外に出さず、サーバーは SHA-256 だけと比べます。
+
+| メソッド | パス | 説明 |
+| --- | --- | --- |
+| `GET` | `/api/kuro/articles?days=14` | 直近の記事（下書きを含む）。slug、title、theme、slot、date、status、出典 URL |
+| `POST` | `/api/kuro/articles` | 作成。成功は 201 と `url`、`version` |
+| `GET` | `/api/kuro/articles/[slug]` | 1件 |
+| `PATCH` | `/api/kuro/articles/[slug]` | 更新。`change_type` と、訂正や公開済みの更新では `change_note` |
+| `POST` | `/api/kuro/skips` | 見送り（`date`、`slot`、任意の `reason`） |
+
+`days` を省略すると 14 です。1〜366 の整数以外は 400 です。日付の「今日」は日本時間です。
+
+認証に失敗すると 401 です。理由は分けません。失敗は IP ごとに 1 分 10 回までで、超えると 429 と `Retry-After` です。書き込み（作成、更新、見送り）は 1 時間 20 回、かつ 1 日 60 回までです。形式の違反は 400 と日本語の `errors` です。同じ日・同じ枠に公開済みがある状態で、もう1本公開しようとすると 409 です。
+
+`DELETE` は用意していません。サーバは 405 を返します。データベースの権限でも削除できません。
+
+成功した作成と更新は、記事ページ（`/articles/[slug]`）、トップ（`/`）、テーマ一覧、その日のアーカイブ、フィードのキャッシュを無効化します。
+
+トークンは環境変数 `KURO_API_TOKEN` に置いたうえで送ります。この値は Git やログに残しません。
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $KURO_API_TOKEN" \
+  "http://localhost:3000/api/kuro/articles?days=14"
+
+curl -sS -X POST \
+  -H "Authorization: Bearer $KURO_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data-binary @article.json \
+  http://localhost:3000/api/kuro/articles
+
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $KURO_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"change_type":"correction","change_note":"数値を訂正した","title":"告示の数値を訂正"}' \
+  http://localhost:3000/api/kuro/articles/2026-12-01-07-example
+
+curl -sS -X POST \
+  -H "Authorization: Bearer $KURO_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-12-01","slot":"12","reason":"一次情報が足りない"}' \
+  http://localhost:3000/api/kuro/skips
+```
 
 ### プレビューの Vercel Authentication
 
