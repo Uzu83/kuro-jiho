@@ -8,12 +8,13 @@ import {
   isTrustedMutationOrigin,
   safeAdminNext,
 } from "@/lib/admin/gate";
-import { draftFromArticle } from "@/lib/admin/draft";
+import { draftFromArticle, nextSourceId } from "@/lib/admin/draft";
 import { MAX_FORM_ROWS, parseArticleForm } from "@/lib/admin/form";
 import { normalizeLoginEmail, performMagicLinkRequest } from "@/lib/admin/login";
 import { buildAdminSlots } from "@/lib/admin/queries";
 import { actorLabel, revisionViews } from "@/lib/admin/revisions";
 import { handleAdminSubmission, type AdminWriteStore, type EditableArticle } from "@/lib/admin/submit";
+import { MESSAGES } from "@/lib/kuro/http";
 import type { ArticleFormInput } from "@/lib/admin/form";
 
 const root = path.resolve(import.meta.dirname, "../..");
@@ -63,6 +64,7 @@ function form(overrides: Partial<ArticleFormInput> = {}): ArticleFormInput {
     changeKind: "update",
     changeNote: "",
     intent: "save",
+    expectedVersion: 1,
     ...overrides,
   };
 }
@@ -498,9 +500,47 @@ describe("article admin mutations", () => {
       sources,
       verification: { checked: sources.map((source) => ({ claim: source.id, source_ids: [source.id] })), removed: [] },
       related: [],
+      version: 1,
     });
     expect(draft.sources).toHaveLength(25);
     expect(draft.checked).toHaveLength(25);
+    expect(draft.version).toBe(1);
+    expect(nextSourceId([{ id: "1" }, { id: "3" }])).toBe("2");
+    expect(nextSourceId([{ id: "1" }, { id: "2" }, { id: "3" }])).toBe("4");
+  });
+
+  it("keeps the version from the form and refuses a stale edit", async () => {
+    const store = memoryStore();
+    const current = publishedArticle();
+    current.version = 3;
+    const stale = await handleAdminSubmission({
+      ...trusted,
+      gate: "allow",
+      mode: "edit",
+      current,
+      form: form({ expectedVersion: 1, title: "古い画面の見出し" }),
+      now: new Date("2026-12-01T00:00:00.000Z"),
+      store,
+      revalidate: vi.fn(),
+    });
+    expect(stale.kind).toBe("invalid");
+    if (stale.kind === "invalid") {
+      expect(stale.state.errors).toContain(MESSAGES.staleArticle);
+    }
+    expect(store.updateArticle).not.toHaveBeenCalled();
+
+    const missing = await handleAdminSubmission({
+      ...trusted,
+      gate: "allow",
+      mode: "edit",
+      current: publishedArticle(),
+      form: form({ expectedVersion: null }),
+      now: new Date("2026-12-01T00:00:00.000Z"),
+      store,
+      revalidate: vi.fn(),
+    });
+    expect(missing.kind).toBe("invalid");
+    expect(store.updateArticle).not.toHaveBeenCalled();
   });
 });
 

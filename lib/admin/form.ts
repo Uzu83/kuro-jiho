@@ -22,6 +22,7 @@ export type ArticleFormInput = {
   changeKind: string;
   changeNote: string;
   intent: "save" | "publish" | "unpublish" | "preview" | "unknown";
+  expectedVersion: number | null;
 };
 
 /** 共有スキーマに件数の上限はない。これを超える送信は切らずに拒否する。 */
@@ -30,6 +31,15 @@ export const MAX_FORM_ROWS = 100;
 export type ArticleFormParse =
   | { ok: true; value: ArticleFormInput }
   | { ok: false; errors: string[] };
+
+function expectedVersion(form: FormData): number | null {
+  const raw = read(form, "expected_version").trim();
+  if (!/^[1-9]\d{0,8}$/.test(raw)) {
+    return null;
+  }
+  const version = Number(raw);
+  return Number.isSafeInteger(version) ? version : null;
+}
 
 function read(form: FormData, key: string): string {
   const value = form.get(key);
@@ -129,6 +139,7 @@ export function parseArticleForm(form: FormData): ArticleFormParse {
       changeKind: read(form, "change_kind").trim(),
       changeNote: read(form, "change_note").trim(),
       intent,
+      expectedVersion: expectedVersion(form),
     },
   };
 }

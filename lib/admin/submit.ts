@@ -17,6 +17,7 @@ import {
   RevisionNoteError,
   SlugConflictError,
   SlotConflictError,
+  StaleArticleError,
   type ArticlePatch,
   type ArticleWrite,
 } from "@/lib/kuro/store";
@@ -197,6 +198,9 @@ function failureMessage(error: unknown): string {
   if (error instanceof RevisionNoteError) {
     return "change_note：訂正では必須です";
   }
+  if (error instanceof StaleArticleError) {
+    return MESSAGES.staleArticle;
+  }
   console.error(`admin save ${error instanceof Error ? error.name : "Error"}`);
   return MESSAGES.failed;
 }
@@ -307,6 +311,10 @@ export async function handleAdminSubmission(input: {
     return { kind: "invalid", state: stateOf([MESSAGES.notFound], [], preview) };
   }
 
+  if (form.intent !== "preview" && (form.expectedVersion === null || form.expectedVersion !== input.current.version)) {
+    return { kind: "invalid", state: stateOf([MESSAGES.staleArticle], [], preview) };
+  }
+
   const context = updateContext(input.current);
   if (!context) {
     return { kind: "invalid", state: stateOf(["記事：保存済みの形式を確認できませんでした"], [], preview) };
@@ -375,11 +383,15 @@ export async function handleAdminSubmission(input: {
     }
   }
 
+  if (form.expectedVersion === null) {
+    return { kind: "invalid", state: stateOf([MESSAGES.staleArticle], parsed.warnings, null) };
+  }
+
   try {
     const saved = await input.store.updateArticle(input.current.id, toPatch(parsed.data), {
       changeType: parsed.data.change_type,
       changeNote: parsed.data.change_note ?? null,
-      expectedVersion: input.current.version,
+      expectedVersion: form.expectedVersion,
     });
     input.revalidate({
       slug: saved.slug,

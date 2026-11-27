@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, type Dispatch, type SetStateAction
 import { useFormStatus } from "react-dom";
 import { ArticleDocument } from "@/app/articles/[slug]/article-document";
 import { submitArticle } from "@/app/admin/actions";
-import type { ArticleDraft, CheckedDraft, Choice, RemovedDraft, SourceDraft } from "@/lib/admin/draft";
+import { nextSourceId, type ArticleDraft, type CheckedDraft, type Choice, type RemovedDraft, type SourceDraft } from "@/lib/admin/draft";
 import { MAX_FORM_ROWS } from "@/lib/admin/form";
 import type { ArticleFormState } from "@/lib/admin/submit";
 
@@ -94,6 +94,9 @@ export function ArticleForm({
     >
       <input type="hidden" name="mode" value={mode} />
       {currentSlug ? <input type="hidden" name="current_slug" value={currentSlug} /> : null}
+      {mode === "edit" && draft.version !== null ? (
+        <input type="hidden" name="expected_version" value={draft.version} />
+      ) : null}
       <input type="hidden" name="source_count" value={sources.length} />
       <input type="hidden" name="checked_count" value={checked.length} />
       <input type="hidden" name="removed_count" value={removed.length} />
@@ -273,7 +276,7 @@ export function ArticleForm({
             onClick={() =>
               setSources([
                 ...sources,
-                { id: String(sources.length + 1), title: "", publisher: "", url: "", accessedAt: "", license: "" },
+                { id: nextSourceId(sources), title: "", publisher: "", url: "", accessedAt: "", license: "" },
               ])
             }
           >
