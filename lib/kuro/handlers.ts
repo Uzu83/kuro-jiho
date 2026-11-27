@@ -114,7 +114,6 @@ async function authorize(request: Request, deps: KuroDeps): Promise<Response | n
   }
 
   try {
-    await deps.store.pruneKuroRateLimits();
     const globallyAllowed = await deps.store.consumeRateLimit(
       KURO_LIMITS.authFailureGlobal.key,
       KURO_LIMITS.authFailureGlobal.limit,
@@ -140,12 +139,6 @@ async function authorize(request: Request, deps: KuroDeps): Promise<Response | n
 }
 
 async function consumeWrite(deps: KuroDeps, now: Date): Promise<Response | null> {
-  try {
-    await deps.store.pruneKuroRateLimits();
-  } catch (error) {
-    logFailure(error);
-    return jsonError(500, MESSAGES.failed);
-  }
   for (const window of [KURO_LIMITS.writeHour, KURO_LIMITS.writeDay]) {
     try {
       const allowed = await deps.store.consumeRateLimit(

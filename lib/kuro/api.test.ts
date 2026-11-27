@@ -213,8 +213,6 @@ class MemoryStore implements KuroStore {
     return { id: "skip-1", date: input.date, slot: input.slot, status: "skipped" as const };
   }
 
-  async pruneKuroRateLimits() {}
-
   async consumeRateLimit(key: string, limit: number, windowSeconds: number) {
     this.calls.push({ key, limit, windowSeconds });
     const count = this.counts.get(key) ?? 0;
@@ -1125,9 +1123,6 @@ describe("kuro api against postgres", () => {
         }
         return { ...row, status: "skipped" };
       },
-      async pruneKuroRateLimits() {
-        await service(`select public.prune_kuro_rate_limits()`);
-      },
       async consumeRateLimit(key, limit, windowSeconds) {
         const rows = await service<{ ok: boolean }>(
           `select public.consume_rate_limit($1, $2, $3) as ok`,
@@ -1259,24 +1254,64 @@ describe("kuro api against postgres", () => {
          ('kuro:write:day', clock_timestamp() - interval '2 hours', 1),
          ('other:keep', clock_timestamp() - interval '30 days', 1)`,
     );
-    await service(`select public.prune_kuro_rate_limits()`);
-    const remaining = await db.query<{ key: string }>(
-      `select key from public.api_rate_limits order by key, window_start`,
+    const consumed = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:write:hour', 20, 3600) as ok`,
     );
-    expect(remaining.rows.map((row) => row.key)).toEqual([
-      "kuro:auth-fail:current",
-      "kuro:write:day",
-      "kuro:write:hour",
-      "other:keep",
-    ]);
+    expect(consumed[0]?.ok).toBe(true);
+    const remaining = await db.query<{ key: string; age: number }>(
+      `select key, extract(epoch from clock_timestamp() - window_start)::int as age
+       from public.api_rate_limits
+       order by key, window_start`,
+    );
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail:old")).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail" && row.age > 60)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:hour" && row.age > 3600)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:day" && row.age > 86400)).toBe(false);
+    expect(remaining.rows.some((row) => row.key === "kuro:auth-fail:current")).toBe(true);
+    expect(remaining.rows.some((row) => row.key === "kuro:write:day" && row.age < 86400)).toBe(true);
+    expect(remaining.rows.some((row) => row.key === "other:keep")).toBe(true);
+    expect(remaining.rows.length).toBeLessThanOrEqual(6);
+
+    await db.exec(`truncate table public.api_rate_limits`);
+    for (let index = 0; index < 60; index += 1) {
+      const added = await service<{ ok: boolean }>(
+        `select public.consume_rate_limit($1, 10, 60) as ok`,
+        [`kuro:auth-fail:${index}`],
+      );
+      expect(added[0]?.ok).toBe(true);
+    }
+    const extra = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:auth-fail:extra', 10, 60) as ok`,
+    );
+    expect(extra[0]?.ok).toBe(false);
+    const bounded = await db.query<{ count: number }>(
+      `select count(*)::int as count
+       from public.api_rate_limits
+       where key like 'kuro:auth-fail:%'`,
+    );
+    expect(bounded.rows[0]?.count).toBe(60);
+    const repeat = await service<{ ok: boolean }>(
+      `select public.consume_rate_limit('kuro:auth-fail:0', 10, 60) as ok`,
+    );
+    expect(repeat[0]?.ok).toBe(true);
+    const stillBounded = await db.query<{ count: number }>(
+      `select count(*)::int as count
+       from public.api_rate_limits
+       where key like 'kuro:auth-fail:%'`,
+    );
+    expect(stillBounded.rows[0]?.count).toBe(60);
 
     await db.exec("begin");
     await db.exec("set local role anon");
-    await expect(db.query(`select public.prune_kuro_rate_limits()`)).rejects.toSatisfy(
-      (error: unknown) => sqlState(error) === "42501",
-    );
+    await expect(
+      db.query(`select public.consume_rate_limit('kuro:auth-fail:anon', 10, 60)`),
+    ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");
     await db.exec("rollback");
 
+    await db.query(
+      `insert into public.api_rate_limits (key, window_start, count)
+       values ('other:keep', clock_timestamp() - interval '30 days', 1)`,
+    );
     await expect(
       service(`delete from public.api_rate_limits where key = 'other:keep'`),
     ).rejects.toSatisfy((error: unknown) => sqlState(error) === "42501");

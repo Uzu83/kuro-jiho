@@ -194,13 +194,6 @@ export function createSupabaseKuroStore(): KuroStore {
       };
     },
 
-    async pruneKuroRateLimits() {
-      const { error } = await db().rpc("prune_kuro_rate_limits");
-      if (error) {
-        throwDb(error);
-      }
-    },
-
     async consumeRateLimit(key, limit, windowSeconds) {
       const { data, error } = await db().rpc("consume_rate_limit", {
         key,
