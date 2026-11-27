@@ -566,6 +566,32 @@ describe("parseArticleCreate", () => {
     ).toBe(true);
     expect(
       parseArticleCreate(
+        validCreate({
+          status: "published",
+          published_at: "2026-12-01T07:00:00+15:59",
+        }),
+      ).success,
+    ).toBe(true);
+    expectRejected(
+      parseArticleCreate(
+        validCreate({ status: "published", published_at: "2026-12-01T07:00:00+99:99" }),
+      ),
+      /^published_at：タイムゾーンのオフセットは -15:59 から \+15:59、または Z にしてください$/,
+    );
+    expectRejected(
+      parseArticleCreate(
+        validCreate({ status: "published", published_at: "2026-12-01T07:00:00+09:60" }),
+      ),
+      /^published_at：タイムゾーンのオフセットは -15:59 から \+15:59、または Z にしてください$/,
+    );
+    expectRejected(
+      parseArticleCreate(
+        validCreate({ status: "published", published_at: "2026-12-01T07:00:00+16:00" }),
+      ),
+      /^published_at：タイムゾーンのオフセットは -15:59 から \+15:59、または Z にしてください$/,
+    );
+    expect(
+      parseArticleCreate(
         validCreate({ published_at: "2026-12-01T06:00:00+09:00" }),
       ).success,
     ).toBe(true);
@@ -866,6 +892,17 @@ describe("parseArticleUpdate", () => {
         contextFrom(created.data),
       ),
       /^published_at：公開するときは必須です$/,
+    );
+    expectRejected(
+      parseArticleUpdate(
+        {
+          change_type: "update",
+          change_note: "時差が不正",
+          published_at: "2026-12-01T07:00:00+99:99",
+        },
+        contextFrom(created.data),
+      ),
+      /^published_at：タイムゾーンのオフセットは -15:59 から \+15:59、または Z にしてください$/,
     );
   });
 });

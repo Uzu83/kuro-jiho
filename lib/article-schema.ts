@@ -110,8 +110,27 @@ function parseTimestamp(value: string): { offset: string } | null {
   if (!isRealDate(date) || hour > 23 || minute > 59 || second > 59) {
     return null;
   }
+  if (!isPgTimeZoneOffset(offset)) {
+    return null;
+  }
 
   return { offset };
+}
+
+/** Postgres の timestamptz が受け付ける時差。Z か -15:59〜+15:59。 */
+function isPgTimeZoneOffset(offset: string): boolean {
+  if (offset === "Z") {
+    return true;
+  }
+
+  const match = /^[+-](\d{2}):(\d{2})$/.exec(offset);
+  if (!match?.[1] || !match[2]) {
+    return false;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return hour <= 15 && minute <= 59;
 }
 
 function hasTimeZone(value: string): boolean {
@@ -153,6 +172,10 @@ function accessedAtIssue(value: string): string | null {
     if (parsed) {
       return `+09:00 付きのISO 8601にしてください（例: ${ACCESSED_AT_EXAMPLE}）`;
     }
+    const offset = value.match(/(Z|[+-]\d{2}:\d{2})$/)?.[1] ?? "";
+    if (!isPgTimeZoneOffset(offset)) {
+      return "タイムゾーンのオフセットは -15:59 から +15:59、または Z にしてください";
+    }
     return "実在する日時にしてください";
   }
 
@@ -164,6 +187,11 @@ function publishedAtIssue(value: string): string | null {
     return looksLikeTimestamp(value)
       ? "タイムゾーンが必要です"
       : "ISO 8601 の日時にしてください";
+  }
+
+  const offset = value.match(/(Z|[+-]\d{2}:\d{2})$/)?.[1] ?? "";
+  if (!isPgTimeZoneOffset(offset)) {
+    return "タイムゾーンのオフセットは -15:59 から +15:59、または Z にしてください";
   }
 
   if (!parseTimestamp(value)) {
