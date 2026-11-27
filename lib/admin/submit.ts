@@ -36,6 +36,7 @@ export type EditableArticle = {
   sources: unknown;
   verification: unknown;
   related: string[];
+  author: string;
 };
 
 export type AdminWriteStore = {

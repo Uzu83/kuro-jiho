@@ -64,7 +64,7 @@ function sourcesOf(value: unknown): SourceDraft[] {
     return [{ ...EMPTY_SOURCE }];
   }
 
-  return value.slice(0, 20).map((item, index) => {
+  return value.map((item, index) => {
     if (!isRecord(item)) {
       return { ...EMPTY_SOURCE, id: String(index + 1) };
     }
@@ -84,7 +84,7 @@ function checkedOf(value: unknown): CheckedDraft[] {
     return [{ claim: "", sourceIds: "1" }];
   }
 
-  return value.checked.slice(0, 20).map((item) => {
+  return value.checked.map((item) => {
     if (!isRecord(item)) {
       return { claim: "", sourceIds: "" };
     }
@@ -98,7 +98,7 @@ function removedOf(value: unknown): RemovedDraft[] {
     return [];
   }
 
-  return value.removed.slice(0, 20).map((item) => {
+  return value.removed.map((item) => {
     if (!isRecord(item)) {
       return { claim: "", reason: "" };
     }
