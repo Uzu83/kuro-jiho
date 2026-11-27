@@ -1,15 +1,16 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/database.types";
 
-const migrationPath = path.join(
-  import.meta.dirname,
-  "migrations/20261127073300_articles_revisions_rate_limits.sql",
-);
-const migrationSql = readFileSync(migrationPath, "utf8");
+const migrationsDir = path.join(import.meta.dirname, "migrations");
+const migrationSql = readdirSync(migrationsDir)
+  .filter((file) => file.endsWith(".sql"))
+  .sort()
+  .map((file) => readFileSync(path.join(migrationsDir, file), "utf8"))
+  .join("\n\n");
 
 const adminId = "22222222-2222-4222-8222-222222222222";
 const outsiderId = "11111111-1111-4111-8111-111111111111";
