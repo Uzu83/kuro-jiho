@@ -1,11 +1,9 @@
-export default function Home() {
-  return (
-    <main>
-      <p className="kicker">AI記者クロ</p>
-      <h1>クロの時報</h1>
-      <p className="lead">
-        公式発表やオープンデータなどの一次情報をもとに書く、誰でも無料で読めるニュースサイトです。
-      </p>
-    </main>
-  );
+import { HomeView } from "@/app/listings/views";
+import { loadHome } from "@/lib/listings/load";
+
+export const revalidate = 3600;
+
+export default async function HomePage() {
+  const home = await loadHome();
+  return <HomeView home={home} />;
 }
