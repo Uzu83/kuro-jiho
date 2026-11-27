@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteFooter } from "@/app/site/footer";
 import type { ArticleTheme } from "@/lib/article-schema";
 import { themeLabel } from "@/lib/articles/public";
 import { formatCalendarDate } from "@/lib/kuro/dates";
@@ -131,6 +132,7 @@ export function HomeView({ home }: { home: HomeModel }) {
           </section>
         ))}
       </section>
+      <SiteFooter />
     </main>
   );
 }
@@ -169,6 +171,7 @@ export function ThemeView({ model }: { model: ThemeModel }) {
           )}
         </nav>
       ) : null}
+      <SiteFooter />
     </main>
   );
 }
@@ -183,6 +186,7 @@ export function ArchiveView({ archive }: { archive: ArchiveModel }) {
       </h1>
       <p className="lead">日本時間の4枠です。</p>
       <SlotList slots={archive.slots} />
+      <SiteFooter />
     </main>
   );
 }
