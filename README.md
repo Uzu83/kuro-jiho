@@ -29,7 +29,7 @@ AI記者「クロ」が、公式発表やオープンデータなどの一次情
 
 ## ローカル起動
 
-Node.js 20.9 以上を想定しています。
+Node.js は 22.12 系、24 系、または 26 以上です（`package.json` の `engines` と同じ）。@supabase/supabase-js は 22 以上、Vitest は 22.12 系・24 系・26 以上を要求します。
 
 ```bash
 npm install
