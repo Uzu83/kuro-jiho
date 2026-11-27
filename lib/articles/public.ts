@@ -1,4 +1,10 @@
-import { ARTICLE_SLUG_PATTERN, ARTICLE_THEMES, type ArticleTheme } from "@/lib/article-schema";
+import {
+  ARTICLE_SLOTS,
+  ARTICLE_SLUG_PATTERN,
+  ARTICLE_THEMES,
+  type ArticleSlot,
+  type ArticleTheme,
+} from "@/lib/article-schema";
 import { renderMarkdown } from "@/lib/markdown/render";
 
 const TOKYO = "Asia/Tokyo";
@@ -58,6 +64,8 @@ export type PublicRelated = {
 export type PublicArticle = {
   slug: string;
   title: string;
+  theme: ArticleTheme;
+  slot: ArticleSlot;
   themeLabel: string;
   publishedAt: string;
   publishedLabel: string;
@@ -78,6 +86,7 @@ export type PublishedArticleRow = {
   slug: string;
   title: string;
   theme: string;
+  slot: string;
   status: string;
   published_at: string | null;
   updated_at: string;
@@ -418,6 +427,12 @@ export async function toPublicArticle(input: {
   if (row.status !== "published" || !ARTICLE_SLUG_PATTERN.test(row.slug)) {
     return null;
   }
+  if (!(ARTICLE_THEMES as readonly string[]).includes(row.theme)) {
+    return null;
+  }
+  if (!(ARTICLE_SLOTS as readonly string[]).includes(row.slot)) {
+    return null;
+  }
 
   const title = cleanText(row.title);
   const summary = parseSummary(row.summary);
@@ -447,6 +462,8 @@ export async function toPublicArticle(input: {
   return {
     slug: row.slug,
     title,
+    theme: row.theme as ArticleTheme,
+    slot: row.slot as ArticleSlot,
     themeLabel: themeLabel(row.theme),
     publishedAt,
     publishedLabel,

@@ -27,6 +27,7 @@ export function revalidateArticleSurfaces(surface: ArticleSurface): void {
     `/articles/${surface.slug}`,
     `/archive/${surface.date}`,
     "/feed.xml",
+    "/sitemap.xml",
   ]);
 
   for (const theme of ARTICLE_THEMES) {

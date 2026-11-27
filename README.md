@@ -177,10 +177,17 @@ curl -sS -X POST \
 
 ### Web Analytics と Speed Insights
 
-計測は Cookie を使いません。有効化は社長がダッシュボードで行います。
+計測は Cookie を使いません。有効化は社長がダッシュボードで行います。アプリ側のコンポーネントは入っています。`/admin` には出しません。ページの URL からはクエリを外してから送ります。
 
-1. プロジェクトの **Analytics** を開き、**Enable** を押します。
+1. この変更を含むデプロイが本番に出たあと、プロジェクトの **Analytics** を開き、**Enable** を押します。
 2. プロジェクトの **Speed Insights** を開き、有効にします。
-3. アプリ側の計測コンポーネント（`@vercel/analytics` と `@vercel/speed-insights`）は別の変更でコードに入ります。ダッシュボードを有効にしたあと、そのコードを含むデプロイが計測を始めます。
+3. Web Analytics も Speed Insights も、ダッシュボードで有効にするまで本番の数字は集まりません。
+
+月に1回、次の2つだけを見ます。個人を特定する値はイベントに入れていません。
+
+- **テーマ別・枠別の閲覧数。** Analytics のカスタムイベント `article_view` を、プロパティ `theme`（fukuoka / it / gadget / sports / f1）と `slot`（07 / 12 / 17 / 20）で分けます。
+- **出典クリック率。** 同じ期間の `source_click` の件数を、`article_view` の件数で割ります。`source_click` に入るのはテーマと出典のドメインだけです。
+
+誤り報告のクリックは `report_error_click`（テーマだけ）です。率の計算には使いません。
 
 このサイトのページから LLM の API は呼びません。

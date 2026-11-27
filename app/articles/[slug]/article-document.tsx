@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArticleViewBeacon, ReportErrorLink, SourceOutboundLink } from "@/app/articles/[slug]/article-events";
 import type { PublicArticle } from "@/lib/articles/public";
 
 const AI_LABEL = "この記事はAI記者クロが公式発表をもとに作成しました。";
@@ -10,6 +11,7 @@ export function ArticleDocument({ article }: { article: PublicArticle }) {
   return (
     <main className="article-main">
       <article className="article">
+        <ArticleViewBeacon theme={article.theme} slot={article.slot} />
         <header className="article-header">
           <p className="article-home">
             <Link href="/">クロの時報</Link>
@@ -58,10 +60,10 @@ export function ArticleDocument({ article }: { article: PublicArticle }) {
                 <p>発行元：{source.publisher}</p>
                 {source.url ? (
                   <p>
-                    <a className="article-source-url" href={source.url} target="_blank" rel="noopener noreferrer">
+                    <SourceOutboundLink href={source.url} theme={article.theme}>
                       {source.url}
                       <span className="visually-hidden">（新しいタブで開く）</span>
-                    </a>
+                    </SourceOutboundLink>
                   </p>
                 ) : (
                   <p>URLは表示できません</p>
@@ -152,10 +154,7 @@ export function ArticleDocument({ article }: { article: PublicArticle }) {
         ) : null}
 
         <p className="article-report">
-          <a href={article.reportHref} target="_blank" rel="noopener noreferrer">
-            誤りを報告
-            <span className="visually-hidden">（新しいタブで開く）</span>
-          </a>
+          <ReportErrorLink href={article.reportHref} theme={article.theme} />
         </p>
       </article>
     </main>

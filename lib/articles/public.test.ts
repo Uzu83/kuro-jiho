@@ -49,6 +49,7 @@ function row(overrides: Partial<PublishedArticleRow> = {}): PublishedArticleRow 
     slug,
     title: "福岡市が告示を公開",
     theme: "fukuoka",
+    slot: "07",
     status: "published",
     published_at: "2026-12-01T07:00:00+09:00",
     updated_at: "2026-12-02T09:30:00+09:00",

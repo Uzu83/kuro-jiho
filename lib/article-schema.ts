@@ -1,4 +1,7 @@
 import { z, type ZodIssue } from "zod";
+import { ARTICLE_SLOTS, ARTICLE_THEMES, type ArticleSlot, type ArticleTheme } from "@/lib/article-kinds";
+
+export { ARTICLE_SLOTS, ARTICLE_THEMES, type ArticleSlot, type ArticleTheme };
 
 /**
  * 記事の作成・更新ペイロード。投稿 API と管理画面は
@@ -22,8 +25,6 @@ import { z, type ZodIssue } from "zod";
  * エラーと警告は「項目名：理由」の配列。使っていない出典は警告で、失敗にはしない。
  */
 
-export const ARTICLE_THEMES = ["fukuoka", "it", "gadget", "sports", "f1"] as const;
-export const ARTICLE_SLOTS = ["07", "12", "17", "20"] as const;
 export const ARTICLE_STATUSES = ["draft", "published", "unpublished"] as const;
 export const ARTICLE_CHANGE_TYPES = ["update", "correction", "publish", "unpublish"] as const;
 
@@ -41,8 +42,6 @@ export const ARTICLE_SLUG_PATTERN =
 const SOURCE_ID_PATTERN = /^[1-9][0-9]*$/;
 const ACCESSED_AT_EXAMPLE = "2026-12-01T07:00:00+09:00";
 
-export type ArticleTheme = (typeof ARTICLE_THEMES)[number];
-export type ArticleSlot = (typeof ARTICLE_SLOTS)[number];
 export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
 export type ArticleChangeType = (typeof ARTICLE_CHANGE_TYPES)[number];
 
