@@ -32,6 +32,7 @@ import {
   RevisionNoteError,
   SlugConflictError,
   SlotConflictError,
+  StaleArticleError,
   type ArticlePatch,
   type ArticleRecord,
   type ArticleWrite,
@@ -79,6 +80,9 @@ function failureResponse(error: unknown): Response {
   if (error instanceof SlugConflictError) {
     return jsonError(409, MESSAGES.slugConflict);
   }
+  if (error instanceof StaleArticleError) {
+    return jsonError(409, MESSAGES.staleArticle);
+  }
   if (error instanceof ArticleNotFoundError) {
     return jsonError(404, MESSAGES.notFound);
   }
@@ -110,6 +114,14 @@ async function authorize(request: Request, deps: KuroDeps): Promise<Response | n
   }
 
   try {
+    const globallyAllowed = await deps.store.consumeRateLimit(
+      KURO_LIMITS.authFailureGlobal.key,
+      KURO_LIMITS.authFailureGlobal.limit,
+      KURO_LIMITS.authFailureGlobal.windowSeconds,
+    );
+    if (!globallyAllowed) {
+      return rateLimited(KURO_LIMITS.authFailureGlobal.windowSeconds, now);
+    }
     const allowed = await deps.store.consumeRateLimit(
       authFailureKey(clientAddress(request)),
       KURO_LIMITS.authFailure.limit,
@@ -417,6 +429,7 @@ export async function handleUpdateArticle(
     const saved = await deps.store.updateArticle(current.id, toPatch(parsed.data), {
       changeType: parsed.data.change_type,
       changeNote: parsed.data.change_note ?? null,
+      expectedVersion: current.version,
     });
     runRevalidate(() =>
       deps.revalidateArticle?.({

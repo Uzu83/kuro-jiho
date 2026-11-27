@@ -48,6 +48,7 @@ export type ArticlePatch = Partial<ArticleWrite>;
 export type ArticleRevision = {
   changeType: string;
   changeNote: string | null;
+  expectedVersion: number;
 };
 
 export type SavedArticle = {
@@ -92,6 +93,13 @@ export class RevisionNoteError extends Error {
   }
 }
 
+export class StaleArticleError extends Error {
+  constructor() {
+    super("stale article version");
+    this.name = "StaleArticleError";
+  }
+}
+
 export function sourceUrls(sources: unknown): string[] {
   if (!Array.isArray(sources)) {
     return [];
@@ -130,6 +138,9 @@ export function mapDatabaseError(code: string | undefined, message: string | und
   }
   if (code === "23514" && /correction/i.test(text)) {
     return new RevisionNoteError();
+  }
+  if (code === "40001") {
+    return new StaleArticleError();
   }
   return new Error("database request failed");
 }
