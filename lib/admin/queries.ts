@@ -187,7 +187,7 @@ export async function loadEditable(slug: string): Promise<EditableArticle | null
   const { data, error } = await supabase
     .from("articles")
     .select(
-      "id, slug, title, theme, slot, date, status, published_at, summary, body_md, sources, verification, related",
+      "id, slug, title, theme, slot, date, status, published_at, summary, body_md, sources, verification, related, author, version",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -195,7 +195,7 @@ export async function loadEditable(slug: string): Promise<EditableArticle | null
   if (error) {
     throw new Error("admin article failed");
   }
-  if (!data) {
+  if (!data || (data.author !== "kuro" && data.author !== "admin")) {
     return null;
   }
 
@@ -213,6 +213,8 @@ export async function loadEditable(slug: string): Promise<EditableArticle | null
     sources: data.sources,
     verification: data.verification,
     related: asStringArray(data.related),
+    version: data.version,
+    author: data.author,
   };
 }
 

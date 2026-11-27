@@ -8,11 +8,13 @@ import {
   isTrustedMutationOrigin,
   safeAdminNext,
 } from "@/lib/admin/gate";
-import { parseArticleForm } from "@/lib/admin/form";
+import { draftFromArticle, nextSourceId } from "@/lib/admin/draft";
+import { MAX_FORM_ROWS, parseArticleForm } from "@/lib/admin/form";
 import { normalizeLoginEmail, performMagicLinkRequest } from "@/lib/admin/login";
 import { buildAdminSlots } from "@/lib/admin/queries";
 import { actorLabel, revisionViews } from "@/lib/admin/revisions";
 import { handleAdminSubmission, type AdminWriteStore, type EditableArticle } from "@/lib/admin/submit";
+import { MESSAGES } from "@/lib/kuro/http";
 import type { ArticleFormInput } from "@/lib/admin/form";
 
 const root = path.resolve(import.meta.dirname, "../..");
@@ -62,6 +64,7 @@ function form(overrides: Partial<ArticleFormInput> = {}): ArticleFormInput {
     changeKind: "update",
     changeNote: "",
     intent: "save",
+    expectedVersion: 1,
     ...overrides,
   };
 }
@@ -82,6 +85,8 @@ function publishedArticle(): EditableArticle {
     sources: input.sources,
     verification: { checked: input.checked, removed: [] },
     related: [],
+    author: "kuro",
+    version: 1,
   };
 }
 
@@ -376,7 +381,7 @@ describe("article admin mutations", () => {
     expect(store.updateArticle).toHaveBeenCalledWith(
       "article-1",
       expect.objectContaining({ title: "見出しを整えた" }),
-      { changeType: "update", changeNote: null },
+      { changeType: "update", changeNote: null, expectedVersion: 1 },
     );
 
     const published = await handleAdminSubmission({
@@ -430,7 +435,7 @@ describe("article admin mutations", () => {
     expect(store.updateArticle).toHaveBeenCalledWith(
       "article-1",
       expect.objectContaining({ title: "訂正後" }),
-      { changeType: "correction", changeNote: "数値を直した" },
+      { changeType: "correction", changeNote: "数値を直した", expectedVersion: 1 },
     );
   });
 
@@ -439,11 +444,103 @@ describe("article admin mutations", () => {
     data.set("ai_generated", "false");
     data.set("title", "見出し");
     data.set("intent", "save");
-    expect(parseArticleForm(data)).not.toHaveProperty("ai_generated");
+    const parsed = parseArticleForm(data);
+    expect(parsed.ok && parsed.value).not.toHaveProperty("ai_generated");
     const source = readFileSync(path.join(root, "lib/admin/store.ts"), "utf8");
     expect(source).toContain("ai_generated: true");
     expect(source).toContain('rpc("kuro_apply_article_update"');
     expect(source).not.toContain(".delete(");
+  });
+
+  it("keeps every submitted row and rejects a count past the form limit", () => {
+    const kept = new FormData();
+    kept.set("source_count", "21");
+    kept.set("checked_count", "1");
+    kept.set("removed_count", "0");
+    for (let index = 0; index < 21; index += 1) {
+      kept.set(`source_${index}_id`, String(index + 1));
+    }
+    const parsed = parseArticleForm(kept);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.sources).toHaveLength(21);
+      expect(parsed.value.sources[20]?.id).toBe("21");
+    }
+
+    const over = new FormData();
+    over.set("source_count", String(MAX_FORM_ROWS + 1));
+    over.set("checked_count", "1");
+    over.set("removed_count", String(MAX_FORM_ROWS + 5));
+    const rejected = parseArticleForm(over);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) {
+      expect(rejected.errors).toEqual([
+        `sources：${MAX_FORM_ROWS}件までです`,
+        `verification：外した点は${MAX_FORM_ROWS}件までです`,
+      ]);
+      expect(JSON.stringify(rejected)).not.toContain(`source_${MAX_FORM_ROWS}_id`);
+    }
+
+    const sources = Array.from({ length: 25 }, (_, index) => ({
+      id: String(index + 1),
+      title: "題",
+      publisher: "発行",
+      url: "https://example.com/source",
+      accessed_at: "2026-12-01T07:00:00+09:00",
+    }));
+    const draft = draftFromArticle({
+      title: "見出し",
+      slug: "2026-12-01-07-note",
+      theme: "fukuoka",
+      slot: "07",
+      date: "2026-12-01",
+      status: "draft",
+      summary: ["一", "二", "三"],
+      body_md: "本文",
+      sources,
+      verification: { checked: sources.map((source) => ({ claim: source.id, source_ids: [source.id] })), removed: [] },
+      related: [],
+      version: 1,
+    });
+    expect(draft.sources).toHaveLength(25);
+    expect(draft.checked).toHaveLength(25);
+    expect(draft.version).toBe(1);
+    expect(nextSourceId([{ id: "1" }, { id: "3" }])).toBe("2");
+    expect(nextSourceId([{ id: "1" }, { id: "2" }, { id: "3" }])).toBe("4");
+  });
+
+  it("keeps the version from the form and refuses a stale edit", async () => {
+    const store = memoryStore();
+    const current = publishedArticle();
+    current.version = 3;
+    const stale = await handleAdminSubmission({
+      ...trusted,
+      gate: "allow",
+      mode: "edit",
+      current,
+      form: form({ expectedVersion: 1, title: "古い画面の見出し" }),
+      now: new Date("2026-12-01T00:00:00.000Z"),
+      store,
+      revalidate: vi.fn(),
+    });
+    expect(stale.kind).toBe("invalid");
+    if (stale.kind === "invalid") {
+      expect(stale.state.errors).toContain(MESSAGES.staleArticle);
+    }
+    expect(store.updateArticle).not.toHaveBeenCalled();
+
+    const missing = await handleAdminSubmission({
+      ...trusted,
+      gate: "allow",
+      mode: "edit",
+      current: publishedArticle(),
+      form: form({ expectedVersion: null }),
+      now: new Date("2026-12-01T00:00:00.000Z"),
+      store,
+      revalidate: vi.fn(),
+    });
+    expect(missing.kind).toBe("invalid");
+    expect(store.updateArticle).not.toHaveBeenCalled();
   });
 });
 
@@ -453,12 +550,12 @@ describe("admin revisions and slots", () => {
     expect(actorLabel("kuro")).toBe("クロ");
     expect(actorLabel(`admin:${adminId}`)).toBe("管理者");
     const views = revisionViews({
-      current: { title: "訂正後", body_md: "新しい本文" },
+      current: { title: "訂正後", body_md: "新しい本文", author: "kuro" },
       revisions: [
         {
           id: "rev-1",
           version: 1,
-          snapshot: { title: "旧見出し", body_md: "古い本文" },
+          snapshot: { title: "旧見出し", body_md: "古い本文", author: "kuro" },
           change_type: "correction",
           note: "数値を直した",
           actor: `admin:${adminId}`,
@@ -468,8 +565,28 @@ describe("admin revisions and slots", () => {
     });
     expect(views[0]?.actorLabel).toBe("管理者");
     expect(JSON.stringify(views)).not.toContain(adminId);
+    expect(views[0]?.changes.some((change) => change.field === "作成")).toBe(false);
     expect(views[0]?.changes.some((change) => change.field === "見出し")).toBe(true);
     expect(views[0]?.changes.some((change) => change.text.includes("- 古い本文"))).toBe(true);
+
+    const authorChange = revisionViews({
+      current: { author: "admin" },
+      revisions: [
+        {
+          id: "rev-2",
+          version: 1,
+          snapshot: { author: "kuro" },
+          change_type: "update",
+          note: null,
+          actor: "kuro",
+          created_at: "2026-12-01T07:00:00+09:00",
+        },
+      ],
+    });
+    const authorText = authorChange[0]?.changes.find((change) => change.field === "作成")?.text ?? "";
+    expect(authorText).toContain("クロ");
+    expect(authorText).toContain("管理者");
+    expect(authorText).not.toContain("（なし）");
   });
 
   it("prefers a published article over an empty slot", () => {

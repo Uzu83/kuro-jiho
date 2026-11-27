@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_NEXT_COOKIE, performMagicLinkRequest } from "@/lib/admin/login";
 import { authorizeAdminAction, isTrustedMutationOrigin, mutationHost } from "@/lib/admin/gate";
-import { parseArticleForm } from "@/lib/admin/form";
+import { groupFieldErrors, parseArticleForm } from "@/lib/admin/form";
 import { loadEditable } from "@/lib/admin/queries";
 import { lookupAllowlisted, readAdminSession, signOutAdmin } from "@/lib/admin/session";
 import { createAdminStore } from "@/lib/admin/store";
@@ -138,7 +138,12 @@ export async function submitArticle(
     redirect("/admin/login?error=denied");
   }
 
-  const form = parseArticleForm(formData);
+  const parsed = parseArticleForm(formData);
+  if (!parsed.ok) {
+    const grouped = groupFieldErrors(parsed.errors);
+    return { ...EMPTY_FORM_STATE, errors: parsed.errors, fieldErrors: grouped.fieldErrors };
+  }
+  const form = parsed.value;
   const mode = formData.get("mode") === "edit" ? "edit" : "create";
   const currentSlug =
     typeof formData.get("current_slug") === "string" ? formData.get("current_slug") as string : "";

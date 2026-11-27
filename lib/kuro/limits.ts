@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 
-/** 書き込みは全体で 1 時間 20 回、1 日 60 回。認証失敗は IP ごとに 1 分 10 回。 */
+/** 書き込みは全体で 1 時間 20 回、1 日 60 回。認証失敗は全体で 1 分 60 回、かつ IP ごとに 1 分 10 回。 */
 export const KURO_LIMITS = {
   writeHour: { key: "kuro:write:hour", limit: 20, windowSeconds: 60 * 60 },
   writeDay: { key: "kuro:write:day", limit: 60, windowSeconds: 60 * 60 * 24 },
+  authFailureGlobal: { key: "kuro:auth-fail", limit: 60, windowSeconds: 60 },
   authFailure: { limit: 10, windowSeconds: 60 },
 } as const;
 

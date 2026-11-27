@@ -344,6 +344,18 @@ describe("theme list", () => {
     );
     expect(missing.outOfRange).toBe(true);
 
+    const pastTheLastPage = await readTheme(
+      directory({
+        async listThemePage() {
+          return { articles: [], total: 10 };
+        },
+      }),
+      "sports",
+      2,
+    );
+    expect(pastTheLastPage.outOfRange).toBe(true);
+    expect(pastTheLastPage.totalPages).toBe(1);
+
     const html = renderToStaticMarkup(
       React.createElement(ThemeView, {
         model: { ...model, page: 2, articles: model.articles },
@@ -567,6 +579,66 @@ describe("createListingDirectory", () => {
       expect(message).not.toContain(secret);
       expect(message).not.toContain("postgres");
     }
+  });
+
+  it("treats a page past the last row as empty instead of a database failure", async () => {
+    const secret = "postgres://db.internal/range-secret";
+    const seen: string[] = [];
+    const client = {
+      from(table: string) {
+        const call = { head: false, ranged: false, filters: [] as string[] };
+        const api = {
+          select(_columns: string, options?: { head?: boolean }) {
+            call.head = options?.head === true;
+            return api;
+          },
+          eq(column: string, value: string) {
+            call.filters.push(`${column}=${value}`);
+            return api;
+          },
+          order() {
+            return api;
+          },
+          range() {
+            call.ranged = true;
+            return api;
+          },
+          then(
+            resolve: (value: {
+              data: null;
+              error: { code?: string; message?: string } | null;
+              count: number | null;
+              status: number;
+            }) => unknown,
+            reject?: (reason: unknown) => unknown,
+          ) {
+            seen.push(
+              `${table}:${call.head ? "head" : "rows"}:${call.filters.join("&")}`,
+            );
+            if (call.ranged) {
+              return Promise.resolve({
+                data: null,
+                error: { code: "PGRST103", message: secret },
+                count: null,
+                status: 416,
+              }).then(resolve, reject);
+            }
+            return Promise.resolve({ data: null, error: null, count: 10, status: 200 }).then(resolve, reject);
+          },
+        };
+        return api;
+      },
+    };
+
+    const page = await createListingDirectory(client as never).listThemePage("sports", 2, 10);
+
+    expect(page).toEqual({ articles: [], total: 10 });
+    expect(seen).toEqual([
+      "articles:rows:status=published&theme=sports",
+      "articles:head:status=published&theme=sports",
+    ]);
+    expect(JSON.stringify(page)).not.toContain(secret);
+    expect(JSON.stringify(page)).not.toContain("postgres");
   });
 
   it("drops rows that are not publicly listable", () => {

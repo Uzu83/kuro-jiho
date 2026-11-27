@@ -293,10 +293,27 @@ function stripImages(html: string): string {
   return html.replace(/<img\b[^>]*>/gi, "");
 }
 
-/** 出典［n］を出典欄のアンカーにする。id は数字だけ。タグの中は触らない。 */
+function isOpeningAnchor(tag: string): boolean {
+  return /^<a\b/i.test(tag) && !/\/>$/.test(tag);
+}
+
+function isClosingAnchor(tag: string): boolean {
+  return /^<\/a\b/i.test(tag);
+}
+
+/** 出典［n］を出典欄のアンカーにする。既存の a の中には入れない。 */
 export function linkCitations(html: string, sourceIds: ReadonlySet<string>): string {
+  let anchorDepth = 0;
   return html.replace(/<\/?[^>]+>|［([1-9][0-9]*)］/g, (match, id: string | undefined) => {
-    if (!id || !sourceIds.has(id)) {
+    if (id === undefined) {
+      if (isOpeningAnchor(match)) {
+        anchorDepth += 1;
+      } else if (isClosingAnchor(match) && anchorDepth > 0) {
+        anchorDepth -= 1;
+      }
+      return match;
+    }
+    if (anchorDepth > 0 || !sourceIds.has(id)) {
       return match;
     }
     return `<a href="#source-${id}">［${id}］</a>`;

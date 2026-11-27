@@ -4,7 +4,8 @@ import { useActionState, useEffect, useState, type Dispatch, type SetStateAction
 import { useFormStatus } from "react-dom";
 import { ArticleDocument } from "@/app/articles/[slug]/article-document";
 import { submitArticle } from "@/app/admin/actions";
-import type { ArticleDraft, CheckedDraft, Choice, RemovedDraft, SourceDraft } from "@/lib/admin/draft";
+import { nextSourceId, type ArticleDraft, type CheckedDraft, type Choice, type RemovedDraft, type SourceDraft } from "@/lib/admin/draft";
+import { MAX_FORM_ROWS } from "@/lib/admin/form";
 import type { ArticleFormState } from "@/lib/admin/submit";
 
 const INITIAL: ArticleFormState = {
@@ -93,6 +94,9 @@ export function ArticleForm({
     >
       <input type="hidden" name="mode" value={mode} />
       {currentSlug ? <input type="hidden" name="current_slug" value={currentSlug} /> : null}
+      {mode === "edit" && draft.version !== null ? (
+        <input type="hidden" name="expected_version" value={draft.version} />
+      ) : null}
       <input type="hidden" name="source_count" value={sources.length} />
       <input type="hidden" name="checked_count" value={checked.length} />
       <input type="hidden" name="removed_count" value={removed.length} />
@@ -264,17 +268,21 @@ export function ArticleForm({
           </div>
         ))}
         <FieldError messages={errors.sources} />
-        <button
-          type="button"
-          onClick={() =>
-            setSources([
-              ...sources,
-              { id: String(sources.length + 1), title: "", publisher: "", url: "", accessedAt: "", license: "" },
-            ])
-          }
-        >
-          出典の行を追加
-        </button>
+        {sources.length >= MAX_FORM_ROWS ? (
+          <p className="admin-hint">出典は{MAX_FORM_ROWS}件までです。</p>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              setSources([
+                ...sources,
+                { id: nextSourceId(sources), title: "", publisher: "", url: "", accessedAt: "", license: "" },
+              ])
+            }
+          >
+            出典の行を追加
+          </button>
+        )}
       </fieldset>
 
       <fieldset className="admin-row">
@@ -305,9 +313,13 @@ export function ArticleForm({
             ) : null}
           </div>
         ))}
-        <button type="button" onClick={() => setChecked([...checked, { claim: "", sourceIds: "" }])}>
-          確認した点を追加
-        </button>
+        {checked.length >= MAX_FORM_ROWS ? (
+          <p className="admin-hint">確認した点は{MAX_FORM_ROWS}件までです。</p>
+        ) : (
+          <button type="button" onClick={() => setChecked([...checked, { claim: "", sourceIds: "" }])}>
+            確認した点を追加
+          </button>
+        )}
 
         <h2 className="admin-subhead">確認できず外した点</h2>
         {removed.map((item, index) => (
@@ -332,9 +344,13 @@ export function ArticleForm({
             </button>
           </div>
         ))}
-        <button type="button" onClick={() => setRemoved([...removed, { claim: "", reason: "" }])}>
-          外した点を追加
-        </button>
+        {removed.length >= MAX_FORM_ROWS ? (
+          <p className="admin-hint">外した点は{MAX_FORM_ROWS}件までです。</p>
+        ) : (
+          <button type="button" onClick={() => setRemoved([...removed, { claim: "", reason: "" }])}>
+            外した点を追加
+          </button>
+        )}
         <FieldError messages={errors.verification} />
       </fieldset>
 

@@ -9,6 +9,7 @@ import {
   correctionReportHref,
   formatJst,
   linkCitations,
+  renderArticleBody,
   toPublicArticle,
   type CorrectionRow,
   type PublishedArticleRow,
@@ -291,6 +292,26 @@ describe("article page", () => {
     expect(html).toContain('<a href="#source-1">［1］</a>');
     expect(html).toContain("［99］");
     expect(html).not.toContain('href="#source-99"');
+  });
+
+  it("does not nest a citation link inside an existing link", async () => {
+    const html = await renderArticleBody(
+      "本文［1］。[発表［1］の詳細](https://example.com/notice)",
+      ["1"],
+    );
+    const nested = linkCitations(
+      '<p><a href="https://example.com/notice">発表<strong>［1］</strong>の詳細</a>［2］</p>',
+      new Set(["1", "2"]),
+    );
+
+    expect(html).toContain('<a href="#source-1">［1］</a>');
+    expect(html).toContain('<a href="https://example.com/notice">発表［1］の詳細</a>');
+    expect(html).not.toContain("<a href=\"https://example.com/notice\">発表<a");
+    expect(nested).toContain(
+      '<a href="https://example.com/notice">発表<strong>［1］</strong>の詳細</a>',
+    );
+    expect(nested).toContain('<a href="#source-2">［2］</a>');
+    expect(nested).not.toContain('href="#source-1"');
   });
 });
 

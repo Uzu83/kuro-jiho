@@ -23,5 +23,5 @@ revoke all on function public.admin_session_allowed()
 
 grant execute on function public.admin_session_allowed() to authenticated;
 
-grant execute on function public.kuro_apply_article_update(uuid, jsonb, text, text)
+grant execute on function public.kuro_apply_article_update(uuid, jsonb, text, text, integer)
   to authenticated;

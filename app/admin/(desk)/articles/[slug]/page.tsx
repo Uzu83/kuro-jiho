@@ -42,6 +42,7 @@ export default async function EditArticlePage({
       verification: article.verification,
       related: article.related,
       published_at: article.published_at,
+      author: article.author,
     },
     revisions: await loadRevisionRows(article.id),
   });
