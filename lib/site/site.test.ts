@@ -174,9 +174,9 @@ describe("about and policy", () => {
 });
 
 describe("personal data", () => {
-  it("does not put a name from LICENSE or an email address on the new pages", () => {
-    const name = copyrightName();
-    const parts = name.split(/\s+/).filter((part) => part.length > 1);
+  it("uses the public handle as the LICENSE copyright name and does not put an email address on the new pages", () => {
+    expect(copyrightName()).toBe(OPERATOR.handle);
+
     const rendered = [
       renderToStaticMarkup(React.createElement(AboutDocument)),
       renderToStaticMarkup(React.createElement(PolicyDocument)),
@@ -185,10 +185,6 @@ describe("personal data", () => {
     const sources = PUBLIC_FILES.map((file) => readFileSync(path.join(root, file), "utf8")).join("\n");
     const haystack = `${rendered}\n${sources}`;
 
-    expect(haystack).not.toContain(name);
-    for (const part of parts) {
-      expect(haystack.toLowerCase()).not.toContain(part.toLowerCase());
-    }
     expect(haystack).not.toMatch(EMAIL);
     expect(haystack.toLowerCase()).not.toContain("mailto:");
   });
