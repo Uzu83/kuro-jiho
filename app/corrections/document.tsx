@@ -14,14 +14,14 @@ export function CorrectionsDocument({ items }: { items: readonly CorrectionListI
       ) : (
         <ul className="story-list">
           {items.map((item) => (
-            <li key={item.slug} className="story-card">
+            <li key={item.slug} className="story">
+              <p className="story-title">
+                <Link href={`/articles/${item.slug}#corrections`}>{item.title}</Link>
+              </p>
               <p className="story-meta">
                 <span>{item.themeLabel}</span>
                 <time dateTime={item.latestAt}>{item.latestLabel}</time>
                 <span>訂正 {item.count}件</span>
-              </p>
-              <p className="story-title">
-                <Link href={`/articles/${item.slug}#corrections`}>{item.title}</Link>
               </p>
               <p className="story-summary">{item.note}</p>
             </li>

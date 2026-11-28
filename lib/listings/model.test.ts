@@ -121,8 +121,8 @@ describe("today slots in JST", () => {
         "skipped",
       ]);
       expect(home.slots[0]).toMatchObject({ article: { title: "今朝の記事" } });
-      expect(home.slots[1]).toMatchObject({ label: "12:00公開予定" });
-      expect(home.slots[2]).toMatchObject({ label: "17:00公開予定" });
+      expect(home.slots[1]).toMatchObject({ label: "12時公開予定" });
+      expect(home.slots[2]).toMatchObject({ label: "17時公開予定" });
       expect(home.slots[3]).toMatchObject({ label: "この枠は見送りました" });
     }
   });
@@ -146,7 +146,7 @@ describe("today slots in JST", () => {
     expect(home.date).toBe("2026-11-30");
     expect(asked).toEqual(["2026-11-30", "2026-11-30"]);
     expect(home.slots.every((slot) => slot.kind === "scheduled")).toBe(true);
-    expect(home.slots[0]).toMatchObject({ label: "7:00公開予定" });
+    expect(home.slots[0]).toMatchObject({ label: "7時公開予定" });
   });
 
   it("shows published, scheduled, and skipped slots, and prefers a published article over a skip", () => {
@@ -176,7 +176,7 @@ describe("today slots in JST", () => {
 
     expect(slots.map((slot) => slot.kind)).toEqual(["published", "scheduled", "published", "skipped"]);
     expect(slots[2]).toMatchObject({ article: { title: "夕刊" } });
-    expect(slots[1]).toMatchObject({ kind: "scheduled", label: "12:00公開予定" });
+    expect(slots[1]).toMatchObject({ kind: "scheduled", label: "12時公開予定" });
     expect(slots[3]).toMatchObject({ kind: "skipped", label: "この枠は見送りました" });
   });
 
@@ -228,8 +228,8 @@ describe("today slots in JST", () => {
 
     expect(text).toContain("この記事はすべてAIが書いています");
     expect(text).toContain("<script>朝刊</script>");
-    expect(text).toContain("17:00公開予定");
-    expect(text).toContain("12:00公開予定");
+    expect(text).toContain("17時公開予定");
+    expect(text).toContain("12時公開予定");
     expect(text).toContain("この枠は見送りました");
     expect(text).toContain("今日の4枠");
     expect(text).toContain("テーマ別の新着");
@@ -431,12 +431,52 @@ describe("archive", () => {
     const text = visibleText(html);
     expect(text).toContain("2026年12月1日");
     expect(text).toContain("昼の記事");
-    expect(text).toContain("7:00公開予定");
-    expect(text).toContain("20:00公開予定");
+    expect(text).toContain("7時公開予定");
+    expect(text).toContain("20時公開予定");
     expect(text).toContain("この枠は見送りました");
     expect(text).toContain("この記事はすべてAIが書いています");
     expect(text).not.toContain("翌日");
     expect(html).not.toMatch(/<img[\s>/]/i);
+  });
+});
+
+describe("slot layout", () => {
+  const slots = buildDaySlots({
+    date: "2026-12-01",
+    articles: [
+      article({ title: "朝の記事", slug: "2026-12-01-07-morning", slot: "07", publishedAt: "2026-12-01T07:00:00+09:00" }),
+      article({ title: "昼の記事", slug: "2026-12-01-12-noon", slot: "12", publishedAt: "2026-12-01T12:00:00+09:00" }),
+    ],
+    skips: [{ date: "2026-12-01", slot: "17", status: "skipped" }],
+  });
+
+  it("puts the newest published slot first and keeps the other slots as one-line rows", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(ArchiveView, { archive: { date: "2026-12-01", dateLabel: "2026年12月1日", slots } }),
+    );
+    const items = html.split("<li ").slice(1);
+
+    expect(items).toHaveLength(4);
+    expect(items[0]).toContain("昼の記事");
+    expect(items[0]).toContain("12時");
+    expect(items.slice(1).map((item) => visibleText(item))).toEqual([
+      expect.stringContaining("7時朝の記事"),
+      expect.stringContaining("17時この枠は見送りました"),
+      expect.stringContaining("20時公開予定"),
+    ]);
+    // 要約は先頭の枠だけ。細い行には出さない。
+    expect(items[0]).toContain("告示が出た");
+    expect(items.slice(1).join("")).not.toContain("告示が出た");
+  });
+
+  it("shows the date next to the masthead on the home page without the time zone note", async () => {
+    const home = await readHome(directory(), new Date("2026-12-01T00:00:00.000Z"));
+    const html = renderToStaticMarkup(React.createElement(HomeView, { home }));
+    const text = visibleText(html);
+
+    expect(text).toContain("クロの時報AI記者クロ2026年12月1日");
+    expect(text).not.toContain("日本時間");
+    expect(html).toContain('href="/archive/2026-12-01"');
   });
 });
 

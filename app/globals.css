@@ -1,22 +1,26 @@
 :root {
   color-scheme: light;
-  --ink: #1c1915;
-  --muted: #5c564c;
-  --rule: #d9d1c3;
-  --paper: #f7f4ee;
-  --accent: #8c2f2f;
-  --tint: #f4e6e4;
+  --ink: #1a1a1a;
+  --muted: #595959;
+  --rule: #d4d4d4;
+  --paper: #ffffff;
+  /* 赤は題字の下の1本の罫と、管理画面の警告だけ。 */
+  --accent: #b3261e;
+  /* 管理画面の面だけに使う薄い灰色。公開面では使わない。 */
+  --tint: #f2f2f2;
+  --serif: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  --sans: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --ink: #f3efe6;
-    --muted: #c9c0b3;
-    --rule: #3f3933;
-    --paper: #161411;
-    --accent: #f0b4b4;
-    --tint: #2a211f;
+    --ink: #ededed;
+    --muted: #b4b4b4;
+    --rule: #3a3a3a;
+    --paper: #121212;
+    --accent: #ff8a80;
+    --tint: #232323;
   }
 }
 
@@ -31,52 +35,51 @@ html {
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-family: var(--sans);
   line-height: 1.7;
 }
 
 main {
   max-width: 40rem;
   margin: 0 auto;
-  padding: 4.5rem 1.5rem 6rem;
+  padding: 3rem 1.5rem 5rem;
 }
 
+/* 見出しはゴシック。明朝は題字（.site-brand と .article-home）だけ。 */
 .kicker {
-  margin: 0 0 0.75rem;
-  color: var(--accent);
-  font-size: 0.8rem;
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
 }
 
 h1 {
   margin: 0;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--rule);
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
-  font-size: 2.5rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .lead {
-  margin: 1.25rem 0 0;
+  margin: 0.75rem 0 0;
   color: var(--muted);
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 a {
-  color: var(--accent);
-  text-underline-offset: 0.18em;
+  color: var(--ink);
+  text-decoration-color: color-mix(in srgb, var(--ink) 45%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
 a:hover {
+  text-decoration-color: currentColor;
   text-decoration-thickness: 2px;
 }
 
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ink);
   outline-offset: 3px;
 }
 
@@ -92,14 +95,24 @@ a:hover {
   border: 0;
 }
 
+/* 記事ページ */
 .article-main {
-  padding: 1.25rem 1rem 3.5rem;
+  padding: 1rem 1rem 3rem;
 }
 
 .article-home {
-  margin: 0 0 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 700;
+  margin: 0 0 1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--accent);
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.article-home a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .article-header {
@@ -110,10 +123,8 @@ a:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0.55rem 0.75rem;
+  gap: 0.5rem 0.75rem;
   margin: 0;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--rule);
 }
 
 .article-heading h1 {
@@ -122,9 +133,8 @@ a:hover {
   margin: 0;
   padding: 0;
   border: 0;
-  font-size: 1.65rem;
-  line-height: 1.35;
-  letter-spacing: 0.02em;
+  font-size: 1.6rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -133,14 +143,11 @@ a:hover {
   align-items: center;
   min-height: 2.25rem;
   margin-top: 0.15rem;
-  padding: 0.15rem 0.7rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  color: var(--accent);
-  background: var(--tint);
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--ink);
+  color: var(--ink);
   font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -149,32 +156,34 @@ a:hover {
 .article-times {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  margin: 0.85rem 0 0;
+  gap: 0.2rem 1rem;
+  margin: 0.6rem 0 0;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .article-ai {
-  margin: 0.9rem 0 0;
-  padding: 0.75rem 0.9rem;
-  border-left: 4px solid var(--accent);
-  background: var(--tint);
-  font-size: 0.98rem;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.article-ai a {
+  color: inherit;
 }
 
 .article-summary {
-  margin: 1.25rem 0 0;
-  padding: 0.85rem 0.9rem 0.85rem 2.1rem;
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.5rem 0.75rem 1.6rem;
   border-block: 1px solid var(--rule);
 }
 
 .article-summary li + li {
-  margin-top: 0.35rem;
+  margin-top: 0.3rem;
 }
 
 .article-body {
-  margin-top: 1.35rem;
+  margin-top: 1.1rem;
   font-size: 1.05rem;
   overflow-wrap: anywhere;
 }
@@ -185,7 +194,7 @@ a:hover {
 
 .article-body h2,
 .article-body h3 {
-  margin: 1.6rem 0 0.45rem;
+  margin: 1.5rem 0 0.4rem;
   font-size: 1.2rem;
   line-height: 1.4;
 }
@@ -193,7 +202,7 @@ a:hover {
 .article-body p,
 .article-body ul,
 .article-body ol {
-  margin: 0.85rem 0;
+  margin: 0.8rem 0;
 }
 
 .article-body ul,
@@ -202,22 +211,21 @@ a:hover {
 }
 
 .article-section {
-  margin-top: 2.25rem;
+  margin-top: 1.75rem;
 }
 
 .article-section h2 {
-  margin: 0 0 0.75rem;
-  padding-bottom: 0.35rem;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--rule);
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
-  font-size: 1.35rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   line-height: 1.4;
 }
 
 .article-section h3 {
-  margin: 1rem 0 0.4rem;
-  font-size: 1.05rem;
+  margin: 0.9rem 0 0.35rem;
+  font-size: 1.02rem;
 }
 
 .article-sources,
@@ -230,7 +238,7 @@ a:hover {
 
 .article-source {
   margin: 0;
-  padding: 0.9rem 0;
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--rule);
 }
 
@@ -271,10 +279,8 @@ a:hover {
 }
 
 .article-details {
-  border: 1px solid var(--rule);
-  border-radius: 0.4rem;
-  padding: 0.2rem 0.9rem 0.85rem;
-  background: color-mix(in srgb, var(--ink) 3%, var(--paper));
+  padding: 0 0 0.75rem;
+  border-bottom: 1px solid var(--rule);
 }
 
 .article-details > summary {
@@ -286,70 +292,96 @@ a:hover {
 }
 
 .article-corrections li {
-  padding: 0.75rem 0;
+  padding: 0.65rem 0;
   border-bottom: 1px solid var(--rule);
 }
 
 .article-corrections time {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .article-related li + li {
-  margin-top: 0.45rem;
+  margin-top: 0.35rem;
 }
 
 .article-report {
-  margin: 2rem 0 0;
+  margin: 1.5rem 0 0;
   font-weight: 700;
 }
 
 @media (min-width: 40rem) {
   .article-main {
-    padding-top: 3.5rem;
+    padding-top: 1.5rem;
   }
 
   .article-heading h1 {
-    font-size: 2.25rem;
+    font-size: 2rem;
   }
 }
 
+/* 公開の一覧・案内ページ */
 .site-main {
-  padding: 1.25rem 1rem 3.5rem;
+  max-width: 46rem;
+  padding: 1rem 1rem 3rem;
 }
 
 .site-main > h1 {
-  margin-top: 1rem;
-  font-size: 1.85rem;
+  margin-top: 1.1rem;
+  font-size: 1.5rem;
   overflow-wrap: anywhere;
 }
 
-.site-header h1 {
-  font-size: 1.85rem;
+.site-masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--accent);
 }
 
-.site-header h1 a,
+.site-brand,
+.site-masthead h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.site-masthead h1 {
+  font-size: 1.9rem;
+}
+
+.site-masthead h1 a,
 .site-brand a {
   color: inherit;
   text-decoration: none;
 }
 
-.site-brand {
+.site-dateline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.9rem;
   margin: 0;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--rule);
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
-  font-size: 1.35rem;
-  font-weight: 600;
-  line-height: 1.2;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.site-dateline a {
+  color: inherit;
 }
 
 .site-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.9rem 0 0;
+  gap: 0 1.1rem;
+  margin: 0;
   padding: 0;
+  border-bottom: 1px solid var(--rule);
   list-style: none;
 }
 
@@ -357,127 +389,160 @@ a:hover {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-  padding: 0.2rem 0.8rem;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ink) 3%, var(--paper));
+  font-size: 0.95rem;
   font-weight: 700;
   text-decoration: none;
 }
 
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
 .site-nav a[aria-current="page"] {
-  border-color: var(--accent);
-  background: var(--tint);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
 }
 
 .site-banner {
-  margin: 1rem 0 0;
-  padding: 0.75rem 0.9rem;
-  border-left: 4px solid var(--accent);
-  background: var(--tint);
-  font-size: 0.98rem;
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .site-section {
-  margin-top: 2.25rem;
-}
-
-.site-section h2,
-.theme-block h3 {
-  margin: 0 0 0.75rem;
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
-  font-weight: 600;
-  line-height: 1.4;
+  margin-top: 1.5rem;
 }
 
 .site-section h2 {
-  padding-bottom: 0.35rem;
+  margin: 0;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--rule);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .theme-block {
-  margin-top: 1.35rem;
+  margin-top: 1.1rem;
 }
 
 .theme-block h3 {
-  font-size: 1.15rem;
-}
-
-.day-line {
-  margin: 0.75rem 0 0;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .slot-list,
 .story-list {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0.9rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.slot-card,
-.story-card {
+.slot,
+.story {
   min-width: 0;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--rule);
-  border-radius: 0.5rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
 }
 
-.slot-card-published {
-  background: color-mix(in srgb, var(--accent) 7%, var(--paper));
+/* 4枠のうち、いちばん新しい公開済みの枠だけを大きく出す。 */
+.slot-lead {
+  padding: 0.9rem 0 1rem;
 }
 
-.slot-card-skipped {
-  color: var(--muted);
-  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+.slot-lead .story-title {
+  margin-top: 0.3rem;
+  font-size: 1.4rem;
+  line-height: 1.4;
+  text-wrap: balance;
 }
 
-.slot-time,
-.story-meta {
+.slot-lead .story-summary {
+  margin-top: 0.4rem;
+  font-size: 1rem;
+}
+
+.slot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
   margin: 0;
-  color: var(--accent);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0 0.5rem;
+  align-items: baseline;
+  padding: 0.5rem 0;
+}
+
+.slot-time {
   font-weight: 700;
-  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-text {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.slot-text a {
+  font-weight: 700;
+}
+
+.slot-state {
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+}
+
+.slot-theme {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.slot-text .slot-theme {
+  margin-left: 0.6rem;
+}
+
+.slot-row-scheduled,
+.slot-row-skipped {
+  color: var(--muted);
 }
 
 .story-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-}
-
-.slot-theme {
-  margin: 0.35rem 0 0;
+  gap: 0 0.75rem;
+  margin: 0.1rem 0 0;
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.slot-state {
-  margin: 0.45rem 0 0;
-  font-weight: 700;
+  font-size: 0.82rem;
 }
 
 .story-title {
-  margin: 0.35rem 0 0;
-  font-size: 1.08rem;
+  margin: 0;
+  font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.45;
 }
 
 .story-title a {
   display: inline-block;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
   overflow-wrap: anywhere;
 }
 
 .story-summary,
 .empty-note {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
   color: var(--muted);
+  font-size: 0.95rem;
   overflow-wrap: anywhere;
 }
 
@@ -486,7 +551,7 @@ a:hover {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
 }
 
 .pager > :last-child {
@@ -507,16 +572,19 @@ a:hover {
 
 @media (min-width: 40rem) {
   .site-main {
-    padding-top: 3rem;
+    padding-top: 1.5rem;
   }
 
-  .site-header h1,
+  .site-masthead h1 {
+    font-size: 2.4rem;
+  }
+
   .site-main > h1 {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
   }
 
-  .slot-list {
-    grid-template-columns: 1fr 1fr;
+  .slot-lead .story-title {
+    font-size: 1.7rem;
   }
 }
 
@@ -566,8 +634,8 @@ main.admin-main {
 
 .admin-form button[type="submit"],
 .admin-filters button[type="submit"] {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--paper);
 }
 
@@ -731,20 +799,21 @@ main.admin-main {
   line-height: 1.5;
 }
 
+
 .article-embedded {
   padding: 0;
 }
 
 .site-footer {
-  margin-top: 2.5rem;
-  padding-top: 1.1rem;
+  margin-top: 2rem;
+  padding-top: 0.5rem;
   border-top: 1px solid var(--rule);
 }
 
 .site-footer ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1rem;
+  gap: 0.2rem 1.1rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -754,6 +823,7 @@ main.admin-main {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 
@@ -762,34 +832,33 @@ main.admin-main {
 }
 
 .info-section {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
 .info-section h2,
 .info-steps h3 {
-  margin: 0 0 0.65rem;
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
-  font-weight: 600;
+  margin: 0 0 0.55rem;
+  font-weight: 700;
   line-height: 1.4;
 }
 
 .info-section h2 {
-  padding-bottom: 0.35rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--rule);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
 }
 
 .info-steps {
-  margin: 0.9rem 0 0;
+  margin: 0.8rem 0 0;
   padding-left: 1.25rem;
 }
 
 .info-steps > li {
-  margin-top: 1rem;
+  margin-top: 0.85rem;
 }
 
 .info-steps h3 {
-  font-size: 1.1rem;
+  font-size: 1.02rem;
 }
 
 .info-section p,

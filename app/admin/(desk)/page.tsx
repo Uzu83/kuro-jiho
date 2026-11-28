@@ -41,7 +41,7 @@ export default async function AdminHomePage({
         <p className="admin-hint">{formatCalendarDate(today)}（日本時間）</p>
         <ul className="slot-list">
           {slots.map((slot) => (
-            <li key={slot.slot} className="slot-card">
+            <li key={slot.slot} className="slot">
               <p className="slot-time">{slot.timeLabel}</p>
               <p className="slot-state">{slot.label}</p>
               {slot.slug && slot.title ? (
@@ -106,7 +106,7 @@ export default async function AdminHomePage({
         {articles.length === 0 ? <p className="empty-note">該当する記事はありません。</p> : null}
         <ul className="story-list">
           {articles.map((article) => (
-            <li key={article.slug} className="story-card">
+            <li key={article.slug} className="story">
               <p className="story-meta">
                 <time dateTime={article.date}>{formatCalendarDate(article.date)}</time>
                 <span>{article.slot}</span>
