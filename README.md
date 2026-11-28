@@ -45,6 +45,8 @@ npm run dev
 
 ブラウザで http://localhost:3000 を開きます。
 
+公開面の見た目を直すときは、先に [DESIGN.md](DESIGN.md) を読んでください。
+
 確認用のコマンド:
 
 ```bash

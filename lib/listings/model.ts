@@ -16,10 +16,10 @@ export const THEME_PAGE_SIZE = 10;
 export const SKIPPED_SLOT_LABEL = "この枠は見送りました";
 
 const SLOT_CLOCK: Record<ArticleSlot, string> = {
-  "07": "7:00",
-  "12": "12:00",
-  "17": "17:00",
-  "20": "20:00",
+  "07": "7時",
+  "12": "12時",
+  "17": "17時",
+  "20": "20時",
 };
 
 export type ListingArticle = {

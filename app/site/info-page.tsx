@@ -1,6 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/app/site/footer";
+import { SiteHeader } from "@/app/site/header";
 
 export function InfoPage({
   title,
@@ -15,12 +15,7 @@ export function InfoPage({
 }) {
   return (
     <main className="site-main">
-      <header className="site-header">
-        <p className="kicker">AI記者クロ</p>
-        <p className="site-brand">
-          <Link href="/">クロの時報</Link>
-        </p>
-      </header>
+      <SiteHeader withNav={false} />
       <h1>{title}</h1>
       <p className="lead">{lead}</p>
       {children}
