@@ -496,6 +496,11 @@ a:hover {
   font-weight: 700;
 }
 
+.slot-state {
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+}
+
 .slot-theme {
   color: var(--muted);
   font-size: 0.82rem;
